@@ -1,0 +1,163 @@
+*&---------------------------------------------------------------------*
+*& Report  ZPMP001
+*&
+*&---------------------------------------------------------------------*
+*&   Программа для ведения базы данных по программному обеспечению, входящему
+*& в состав автоматизированных систем управления технологическим процессом
+*& (АСУТП) и средств измерения (СИ).
+*&
+*----------------------------------------------------------------------------
+*  Префиксы в названиях
+*    g = global, глобальное объявление (не используется в подпрограммах)
+*    l = local, локальное объявление
+*
+*    t = table, таблица
+*    s = structure, структура
+*    v = value, переменная
+*    c = constant, константа
+*    f = field-symbol, указатель
+*
+*    i = input, входной параметр
+*    o = output, выходной параметр
+*
+*    ty_  = type, тип
+*    ty_s = type of structure, тип структуры
+*    ty_t = type of table, тип таблицы
+*--------------------------------------------------------------------*
+Report  ZPMP001.
+
+Constants:
+  begin of gc_version,
+    major type n length 1 value '0',
+    minor type n length 2 value '01',
+  end of gc_version,
+  begin of gcs,
+    begin of commands,
+      "Общие для всех экранов
+      help type sy-ucomm value 'HELP',
+      version type sy-ucomm value 'VERSION',
+      begin of sel_screen, "Для экрана выбора
+        online type sy-ucomm value 'ONLI',
+      end of sel_screen,
+    end of commands,
+    begin of screens,
+      begin of sel_screen,
+        number type i value 1000,
+      end of sel_screen,
+    end of screens,
+*    begin of transactions,
+*    end of transactions,
+    begin of alv_1,
+      name type TABNAME value 'ZPM_DOCS',
+      key_mandt type NAME_FELD value 'MANDT',
+    end of alv_1,
+  end of gcs.
+
+Selection-screen begin of block b10 with frame title text-010.
+  Parameters:
+    p_1_name type eqkt-eqktx.
+Selection-screen end of block b10.
+Selection-screen begin of block b20 with frame title text-020.
+  Parameters:
+    p_2_type type eqkt-eqktx.
+Selection-screen end of block b20.
+Parameters:
+  p_3_comm type eqkt-eqktx.
+
+*--- Реакция на нажатие кнопок на экране выбора ------------------------------*
+At selection-screen.
+  Perform dispatch_user_command using sy-dynnr changing sy-ucomm.
+
+*--- Нажатие "Выполнить" (F8) на экране выбора (sy-ucomm = 'ONLI') -----------*
+Start-of-selection.
+  Message i000(su) with 'Не готово'.
+
+
+*&-------------------------------------------------------------------*
+*& Обработать команду от пользователя
+*&-------------------------------------------------------------------*
+Form dispatch_user_command
+  using
+    iv_dynnr type sy-dynnr
+  changing
+    ov_ucomm type sy-ucomm.
+
+  Data: lv_ucomm type sy-ucomm,
+        lv_buk type bukrs,
+        lv_cursor_field type c length 30,
+        lv_cursor_value type c length 30.
+
+  lv_ucomm = ov_ucomm. "ov_ucomm очищается при успешном завершении подпрограммы
+
+  If lv_ucomm is initial.
+    Exit.
+  Endif.
+
+  "Искать команду в списке команд, общих для всех экранов.
+  "Если найдена — обработать и выйти из этой подпрограммы.
+  Case lv_ucomm.
+    When gcs-commands-help.
+      Perform show_help.
+      Exit.
+    When gcs-commands-version.
+      Perform show_version using gc_version.
+      Exit.
+    When others.
+      "Команда не найдена в списке команд, общих для всех экранов.
+      "Продолжить поиск.
+  Endcase.
+
+  "Искать команду в списке команд, специфичных для указанного экрана
+  Case iv_dynnr.
+    "Команды на экране выбора
+    When gcs-screens-sel_screen-number.
+      Case lv_ucomm.
+        When gcs-commands-sel_screen-online. "Нажатие "Выполнить" (F8) на экране выбора
+          "ничего не делать, обработка находится в событии Start-of-selection
+        When others. "Команда не найдена в списке обрабатываемых
+          "Ничего не делать = стандартные команды на экране выбора и так обрабатываются
+          Exit.
+      Endcase.
+
+    "Команды на остальных экранах = на экране со списком ЕО
+    When others.
+      Message i000(SU) with 'На экране' iv_dynnr 'не обрабатывается команда' lv_ucomm.
+  Endcase.
+
+  Clear ov_ucomm. "ov_ucomm очищается при успешном завершении подпрограммы
+Endform.
+
+Form show_help.
+  Message i000(SU) with 'Скрытые команды: HELP, VERSION'.
+Endform.
+
+Form show_version using ic_version like gc_version.
+  Data:
+    lv_message type string,
+    lv_changed_date type TRDIR-UDAT,
+    lv_date_string type c length 10,
+    lv_changed_by type TRDIR-UNAM,
+    lv_substring type string.
+
+  Move sy-title to lv_message.
+  Concatenate lv_message ', версия '
+              ic_version-major '.' ic_version-minor
+    into lv_message respecting blanks.
+
+  Select single UDAT UNAM
+    from TRDIR
+    into (lv_changed_date, lv_changed_by)
+    where NAME = sy-repid.
+  If sy-subrc <> 0.
+    lv_substring = 'Последнее изменение неизвестно (таблица TRDIR).'.
+  Else.
+    Write lv_changed_date to lv_date_string.
+    Concatenate 'Последнее изменение сделано' lv_date_string
+                'пользователем' lv_changed_by
+      into lv_substring separated by space.
+  Endif.
+
+  Concatenate lv_message lv_substring
+    into lv_message separated by '. '.
+  Message lv_message type 'I'.
+Endform.

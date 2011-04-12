@@ -1,0 +1,14 @@
+ZPMP001_1
+Перечень ПО, входящего в состав АСУТП и СИ
+
+--Ключ
+MANDT	MANDT	CLNT	3	0	Мандант
+STORT	STORT	CHAR	10	0	Местоположение основного средства
+UNIQUE_INDEX	ZPMP001_1_INDEX	INT4	10	0	Уникальный номер единицы ПО
+--Остальные поля
+MANUFACTURER	ZPMP001_1_MANUFACTURER	CHAR	48	0	Разработчик/производитель
+DATE_START	ZPMP001_1_DATE_START	CHAR	7	0	Дата ввода в эксплуатацию
+PROJECT	ZPMP001_1_PROJECT	CHAR	5	0	Номер проекта
+TYPE	ZPMP001_1_TYPE	CHAR	48	0	Тип/модель
+VERSION_ORIGINAL	ZPMP001_1_VERSION_ORIG	CHAR	48	0	Версия оригинала
+VERSION_MOD	ZPMP001_1_VERSION_MOD	CHAR	48	0	Версия изменённого ПО
