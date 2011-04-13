@@ -27,11 +27,14 @@
 Report  ZPMP001.
 
 Constants:
+  gc_true type boolean value 'X',
+  gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '02',
+    minor type n length 2 value '03',
   end of gc_version,
   begin of gcs,
+    icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
     begin of commands,
       "Общие для всех экранов
       help type sy-ucomm value 'HELP',
@@ -41,28 +44,141 @@ Constants:
       end of sel_screen,
     end of commands,
     begin of screens,
+      status type gui_status value '0001', "Статус по умолчанию
+      begin of data_view, "Экран для просмотра
+        number type i value 30,
+        title type gui_title value '0030',
+      end of data_view,
       begin of sel_screen,
         number type i value 1000,
       end of sel_screen,
     end of screens,
-*    begin of transactions,
-*    end of transactions,
+    begin of alv, "общее для гридов (ALV-Grid)
+      begin of variant_save_modes,
+        only_user type c length 1 value 'U', "Сохранять вариант только для пользователя
+        only_global type c length 1 value 'X',  "только глобально — 'X'
+        all type c length 1 value 'A',          "обоими способами — 'A'
+      end of variant_save_modes,
+      begin of stable_refresh, "при обновлении грида не сдвигать полосу прокрутки по ...
+        row type lvc_s_stbl-row value gc_true, "... вертикали
+        col type lvc_s_stbl-col value gc_true, "... горизонтали
+      end of stable_refresh,
+    end of alv,
     begin of alv_1,
       name type TABNAME value 'ZPM_DOCS',
       key_mandt type NAME_FELD value 'MANDT',
     end of alv_1,
+    begin of data_table,
+      table_name type TABNAME value 'ZPMP001_1',
+      key_mandt type NAME_FELD value 'MANDT',
+      key_stort type NAME_FELD value 'STORT',
+      key_unique_index type NAME_FELD value 'UNIQUE_INDEX',
+      name type NAME_FELD value 'NAME',
+      manufact_place type NAME_FELD value 'MANUFACT_PLACE',
+      manufact_name type NAME_FELD value 'MANUFACT_NAME',
+      date_start type NAME_FELD value 'DATE_START',
+      project type NAME_FELD value 'PROJECT',
+      type type NAME_FELD value 'TYPE',
+      version_origianl type NAME_FELD value 'VERSION_ORIGINAL',
+      version_mod type NAME_FELD value 'VERSION_MOD',
+      num_of_copies type NAME_FELD value 'NUM_OF_COPIES',
+    end of data_table,
   end of gcs.
 
+Types:
+  ty_t_data type table of ZPMP001_1,
+  ty_s_data type line of ty_t_data.
+
+*&-------------------------------------------------------------------*
+*& Обработчик событий для всех ALV-Grid'ов, объявление
+*&-------------------------------------------------------------------*
+Class lcl_grid_event_handler definition final.
+  Public section.
+    Methods:
+      handle_hotspot_click
+        for event hotspot_click of cl_gui_alv_grid
+          importing sender e_column_id es_row_no,
+      handle_data_changed
+        for event data_changed of cl_gui_alv_grid
+          importing sender er_data_changed.
+  Private section.
+    "Пусто
+Endclass.
+
+Data:
+  gt_data type ty_t_data,
+  begin of gs_auth,
+    create type boolean value gc_false,
+    change type boolean value gc_false,
+    view type boolean value gc_false,
+    delete type boolean value gc_false,
+    all type boolean value gc_false,
+    alv_variant_save_mode like gcs-alv-variant_save_modes-all,
+  end of gs_auth,
+  begin of gs_alv,
+    begin of 01,
+      r_grid type ref to cl_gui_alv_grid,
+      r_handler type ref to lcl_grid_event_handler,
+      r_cont type ref to cl_gui_docking_container,
+      t_fcat type lvc_t_fcat,
+      t_sort type lvc_t_sort,
+      t_excl type ui_functions,
+      s_layo type lvc_s_layo,
+      s_vari type disvariant,
+    end of 01,
+  end of gs_alv.
+
+
+*&-------------------------------------------------------------------*
+*& Обработчик событий для всех ALV-Grid'ов, реализация
+*&-------------------------------------------------------------------*
+Class lcl_grid_event_handler implementation.
+  Method handle_hotspot_click.
+    "Переключение между гридами
+    Case sender.
+      When gs_alv-01-r_grid.
+*        Perform alv_1_handle_hotspot
+*          using e_column_id es_row_no
+*          changing gt_data.
+        Message i000(SU) with 'Событие hotspot_click' 'не обрабатывается для этого ALV-Grid''а'.
+      When others.
+        Message i000(SU) with 'Событие hotspot_click' 'не обрабатывается для этого ALV-Grid''а'.
+    Endcase.
+  Endmethod.
+
+  Method handle_data_changed.
+    Case sender.
+*      When gr_grid_10.
+*        "Использовать экземпляр класса, передаваемый через сообщение
+*        Perform alv_10_handle_data_changed using er_data_changed changing gt_equip.
+      When others.
+        Message i000(SU) with 'Событие data_changed' 'не обрабатывается для этого ALV-Grid''а'.
+    Endcase.
+  Endmethod.
+Endclass.
+
+
+Tables:
+  ZPMP001_1.
+
 Selection-screen begin of block b10 with frame title text-010.
-  Parameters:
-    p_1_name type eqkt-eqktx.
+  Select-options:
+    so1_strt for ZPMP001_1-STORT,
+    so1_name for ZPMP001_1-NAME,
+    so1_man1 for ZPMP001_1-MANUFACT_PLACE,
+    so1_man2 for ZPMP001_1-MANUFACT_NAME,
+    so1_proj for ZPMP001_1-PROJECT,
+    so1_date for ZPMP001_1-DATE_START.
 Selection-screen end of block b10.
 Selection-screen begin of block b20 with frame title text-020.
-  Parameters:
-    p_2_type type eqkt-eqktx.
+  Select-options:
+    so2_type for ZPMP001_1-TYPE,
+    so2_vero for ZPMP001_1-VERSION_ORIGINAL,
+    so2_verm for ZPMP001_1-VERSION_MOD,
+    so2_numc for ZPMP001_1-NUM_OF_COPIES default 1.
 Selection-screen end of block b20.
 Parameters:
-  p_3_comm type eqkt-eqktx.
+  p3_comm type eqkt-eqktx.
 
 *--- Реакция на нажатие кнопок на экране выбора ------------------------------*
 At selection-screen.
@@ -70,7 +186,11 @@ At selection-screen.
 
 *--- Нажатие "Выполнить" (F8) на экране выбора (sy-ucomm = 'ONLI') -----------*
 Start-of-selection.
-  Message i000(su) with 'Не готово'.
+  Perform get_data changing gt_data.
+
+*--- Выборка из базы данных завершена ----------------------------------------*
+End-of-selection.
+  Call screen gcs-screens-data_view-number.
 
 
 *&-------------------------------------------------------------------*
@@ -160,4 +280,248 @@ Form show_version using ic_version like gc_version.
   Concatenate lv_message lv_substring
     into lv_message separated by '. '.
   Message lv_message type 'I'.
+Endform.
+
+Form get_data changing ot_data type ty_t_data.
+  Select *
+    from ZPMP001_1
+    into corresponding fields of table ot_data
+    where STORT in so1_strt
+      and NAME in so1_name
+      and DATE_START in so1_date.
+Endform.
+
+Module init_screen output. "Общий для всех экранов — установить GUI-статус
+  Set pf-status gcs-screens-status. "Установить минимальный набор функций
+  "Инициировать экземпляр ALV-Grid'а и заголовок, соответствующие текущему экрану
+  Case sy-dynnr.
+    When gcs-screens-data_view-number.
+      Set titlebar gcs-screens-data_view-title.
+      Perform alv_1_display using gt_data.
+    When others.
+      Message i000(SU) with 'Отображение ALV-Grid''а на экране' sy-dynnr 'не обрабатывается'.
+  Endcase.
+Endmodule.
+
+Module exit_screen input. "Общий для всех экранов — обработать команду выхода
+  Perform exit_screen using sy-dynnr.
+Endmodule.
+
+Form exit_screen
+  using i_dynnr like sy-dynnr.
+
+  Data: "Чтобы ловить исключительные ситуации
+    lv_exc_text type string,
+    lr_exception type ref to cx_root.
+
+  Case i_dynnr.
+
+    When gcs-screens-data_view-number.
+      Try.
+        Call method gs_alv-01-r_grid->free.
+        Call method gs_alv-01-r_cont->free.
+      Catch cx_root into lr_exception. "#EC CATCH_ALL
+        Call method lr_exception->if_message~get_text
+          receiving
+            result = lv_exc_text.
+        Message i000(SU) with 'Исключительная ситуация при вызове методов Free:' lv_exc_text.
+      Endtry.
+      Free: gs_alv-01-r_grid, gs_alv-01-r_cont, gs_alv-01-r_handler,
+            gt_data, gs_alv-01-t_fcat, gs_alv-01-t_sort,
+            gs_alv-01-s_layo, gs_alv-01-s_vari.
+
+    When others.
+      Message i000(SU) with 'Модуль exit_screen не обрабатывает экран' i_dynnr.
+      Exit.
+
+  Endcase.
+
+  "Вернуться на предыдущий экран, с которого был вызван текущий
+  Leave to screen 0.
+Endform.
+
+Form alv_1_prepare
+  changing:
+    ot_fieldcat type lvc_t_fcat
+    ot_sort type lvc_t_sort
+    os_layout type lvc_s_layo
+    os_variant type disvariant
+    o_variant_save_mode like gcs-alv-variant_save_modes-all.
+
+  Data:
+    ls_fcat type lvc_s_fcat,
+    ls_sort type lvc_s_sort.
+
+  If gc_true = gs_auth-all.
+    o_variant_save_mode = gcs-alv-variant_save_modes-all.
+  Else.
+    o_variant_save_mode = gcs-alv-variant_save_modes-only_user.
+  Endif.
+
+"Field catalog
+  Call function 'LVC_FIELDCATALOG_MERGE'
+    exporting
+      i_structure_name             = gcs-data_table-table_name
+    changing
+      ct_fieldcat                  = ot_fieldcat
+    exceptions
+      others                       = 1
+            .
+  If sy-subrc <> 0.
+    Message e000(SU) with 'Ошибка при заполнении fieldcat для ALV на экране' sy-dynnr 'из таблицы' gcs-data_table-table_name.
+    Exit.
+  Endif.
+
+  Loop at ot_fieldcat into ls_fcat.
+    "Скрыть столбцы
+*    If ls_fcat-fieldname = gcs-doc_table-key_mandt
+*    or ls_fcat-fieldname = gcs-doc_table-key_time
+*    or ls_fcat-fieldname = gcs-doc_table-key_name.
+*      ls_fcat-no_out = gc_true.
+*    Endif.
+
+    "Определить порядок следования столбцов, удалить ненужные
+*    Case ls_fcat-fieldname.
+*      When gcs-doc_table-stand.
+*        ls_fcat-col_pos = 1.
+*
+*      When gcs-doc_table-key_reference.
+*        ls_fcat-hotspot = gc_true.
+*        ls_fcat-col_pos = 2.
+*
+*      When gcs-doc_table-del_flag
+*        or gcs-doc_table-del_date
+*        or gcs-doc_table-del_time
+*        or gcs-doc_table-del_name.
+*        "Полностью убрать столбцы из грида
+*        Delete ot_fieldcat index sy-tabix.
+*        Continue.
+*
+*      When others.
+*    Endcase.
+
+    Modify ot_fieldcat from ls_fcat.
+  Endloop.
+
+*  Case gs_auth-delete.
+*    When gc_true.
+*      "Добавить столбец с хотспотами в виде мусорных корзин, вхождение 2 из 3
+*      Loop at ot_fieldcat into ls_fcat where col_pos >= 3.
+*        Add 1 to ls_fcat-col_pos.
+*        Modify ot_fieldcat from ls_fcat index sy-tabix.
+*      Endloop.
+*      Clear ls_fcat.
+*      ls_fcat-fieldname = gcs-doc_table-trash_doc.
+*      ls_fcat-inttype = 'C'.
+*      ls_fcat-hotspot = gc_true.
+*      ls_fcat-icon = gc_true.
+*      ls_fcat-scrtext_s = 'УдДокум'.
+*      ls_fcat-scrtext_m = ls_fcat-scrtext_s.
+*      ls_fcat-scrtext_l = 'Удалить документ'.
+*      ls_fcat-tooltip = 'Удалить документ со всеми ЕО'.
+*      ls_fcat-col_pos = 3.
+*      Append ls_fcat to ot_fieldcat.
+*
+*      Loop at ot_fieldcat into ls_fcat where col_pos >= 6.
+*        Add 1 to ls_fcat-col_pos.
+*        Modify ot_fieldcat from ls_fcat index sy-tabix.
+*      Endloop.
+*      Clear ls_fcat.
+*      ls_fcat-fieldname = gcs-doc_table-trash_equnr.
+*      ls_fcat-inttype = 'C'.
+*      ls_fcat-hotspot = gc_true.
+*      ls_fcat-icon = gc_true.
+*      ls_fcat-seltext = 'Удалить ЕО'.
+*      ls_fcat-scrtext_s = 'УдЕО'.
+*      ls_fcat-scrtext_m = 'Удалить ЕО'.
+*      ls_fcat-scrtext_l = 'Удалить единицу оборудования'.
+*      ls_fcat-tooltip = 'Удалить одну ЕО из документа'.
+*      ls_fcat-col_pos = 6.
+*      Append ls_fcat to ot_fieldcat.
+*    When others.
+*  Endcase.
+  Sort ot_fieldcat by col_pos ascending.
+"Sort
+*  ls_sort-spos = 1.
+*  ls_sort-fieldname = gcs-doc_table-stand.
+*  ls_sort-up = gc_false.
+*  ls_sort-down = gc_true.
+*  Append ls_sort to ot_sort.
+*
+*  ls_sort-spos = 2.
+*  ls_sort-fieldname = gcs-doc_table-key_reference.
+*  ls_sort-up = gc_false.
+*  ls_sort-down = gc_true.
+*  Append ls_sort to ot_sort.
+
+"Layout
+  os_layout-cwidth_opt = gc_true.
+
+"Variant
+  os_variant-report = sy-repid.
+Endform.
+
+Form alv_1_display
+  using
+    it_data type ty_t_data.
+
+  Data: ls_data type ty_s_data.
+
+  If gs_alv-01-r_grid is initial.
+    Create object gs_alv-01-r_cont
+      exporting
+        repid         = sy-repid
+        dynnr         = sy-dynnr
+        side          = cl_gui_docking_container=>dock_at_top
+        extension     = cl_gui_docking_container=>ws_maximizebox
+      exceptions
+        others                      = 1
+        .
+    If sy-subrc <> 0.
+      Message e000(SU) with 'Не удалось создать экземпляр' 'docking-контейнера на экране' sy-dynnr.
+      Exit.
+    Endif.
+    Create object gs_alv-01-r_grid
+      exporting
+        i_parent          = gs_alv-01-r_cont
+      exceptions
+        others            = 1
+        .
+    If sy-subrc <> 0.
+      Message e000(SU) with 'Не удалось создать экземпляр ALV-Grid''а на экране' sy-dynnr.
+      Exit.
+    Endif.
+
+    Perform alv_1_prepare changing gs_alv-01-t_fcat gs_alv-01-t_sort gs_alv-01-s_layo gs_alv-01-s_vari gs_auth-alv_variant_save_mode.
+    Create object gs_alv-01-r_handler.
+    Set handler gs_alv-01-r_handler->handle_hotspot_click for gs_alv-01-r_grid.
+
+  "Добавить столбец с хотспотами в виде мусорных корзин, вхождение 3 из 3
+*    Loop at it_data into ls_data.
+*      ls_data-trash_doc = ls_data-trash_equnr = gcs-icon_delete.
+*      Modify it_data from ls_data index sy-tabix.
+*    Endloop.
+
+    Call method gs_alv-01-r_grid->set_table_for_first_display
+      exporting
+        is_layout                     = gs_alv-01-s_layo
+        is_variant                    = gs_alv-01-s_vari
+        i_save                        = gs_auth-alv_variant_save_mode
+      changing
+        it_outtab                     = it_data
+        it_fieldcatalog               = gs_alv-01-t_fcat
+        it_sort                       = gs_alv-01-t_sort
+      exceptions
+        others                        = 1
+            .
+    If sy-subrc <> 0.
+      Message e000(SU) with 'Исключ. ситуация при вызове метода' 'gs_alv-01-r_grid->set_table_for_first_display на экране' sy-dynnr.
+      Exit.
+    Endif.
+
+  Else.
+    Call method gs_alv-01-r_grid->refresh_table_display
+      exporting
+        is_stable = gcs-alv-stable_refresh.
+  Endif.
 Endform.
