@@ -29,7 +29,7 @@ Report  ZPMP001.
 Constants:
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '01',
+    minor type n length 2 value '02',
   end of gc_version,
   begin of gcs,
     begin of commands,
