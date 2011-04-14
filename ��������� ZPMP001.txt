@@ -31,10 +31,17 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '06',
+    minor type n length 2 value '07',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
+    begin of permission_string,
+      create type ZPM_USR-OPERATION value 'CREATE',
+      change type ZPM_USR-OPERATION value 'CHANGE',
+      view type ZPM_USR-OPERATION value 'VIEW',
+      delete type ZPM_USR-OPERATION value 'DELETE',
+      all type ZPM_USR-OPERATION value 'ALL',
+    end of permission_string,
     begin of commands,
       "Общие для всех экранов
       help type sy-ucomm value 'HELP',
@@ -62,8 +69,8 @@ Constants:
       end of data_view,
       begin of sel_screen,
         number type i value 1000,
-        group1 type screen-group1 value 'CHA',"Изменил? Ищи modif id CHA
-        group2 type screen-group1 value 'VIE',"Изменил? Ищи modif id VIE
+        group_create type screen-group1 value 'CRE',"Изменил? Ищи modif id CRE
+        group_change type screen-group1 value 'CHA',"Изменил? Ищи modif id CHA
       end of sel_screen,
     end of screens,
     begin of alv, "общее для гридов (ALV-Grid)
@@ -122,14 +129,14 @@ Endclass.
 Data:
   gt_data type ty_t_data,
   gv_row_count type i,
-  begin of gs_auth,
+  begin of gs_permissions,
     create type boolean value gc_false,
     change type boolean value gc_false,
     view type boolean value gc_false,
     delete type boolean value gc_false,
     all type boolean value gc_false,
     alv_variant_save_mode like gcs-alv-variant_save_modes-all,
-  end of gs_auth,
+  end of gs_permissions,
   begin of gs_alv,
     begin of 01,
       r_grid type ref to cl_gui_alv_grid,
@@ -170,7 +177,7 @@ Endclass.
 Tables:
   ZPMP001_1.
 
-Selection-screen pushbutton /1(40) text-001 user-command goto_new modif id CHA. "Добавить
+Selection-screen pushbutton /1(40) text-001 user-command goto_new modif id CRE. "Добавить
 Selection-screen begin of block b10 with frame title text-010.
   Select-options:
     so1_strt for ZPMP001_1-STORT,
@@ -194,7 +201,39 @@ Selection-screen end of block b20.
 Select-options:
   so3_comm for ZPMP001_1-COMMENTARY.
 Selection-screen pushbutton /1(40) text-002 user-command goto_change modif id CHA. "Изменить
-Selection-screen pushbutton /1(40) text-003 user-command goto_view modif id VIE. "Просмотреть
+Selection-screen pushbutton /1(40) text-003 user-command goto_view. "Просмотреть
+
+Initialization.
+  gs_permissions-view = gc_true. "Нет проверки полномочий на просмотр — смотрят все
+  Perform check_permission
+    using sy-repid sy-uname gcs-permission_string-change gcs-permission_string-all
+    changing gs_permissions-change.
+  Perform check_permission
+    using sy-repid sy-uname gcs-permission_string-create gcs-permission_string-all
+    changing gs_permissions-create.
+  Perform check_permission
+    using sy-repid sy-uname gcs-permission_string-delete gcs-permission_string-all
+    changing gs_permissions-delete.
+  Perform check_permission
+    using sy-repid sy-uname gcs-permission_string-all gcs-permission_string-all
+    changing gs_permissions-all.
+  "Не пускать, если нет ни полномочий на VIEW, ни на любое другое действие
+  If gs_permissions-view   = gc_false and gs_permissions-change = gc_false and
+     gs_permissions-create = gc_false and gs_permissions-delete = gc_false.
+
+    "Сообщение типа E в событии Initialization равнозначно выходу из программы
+    Message e000(SU) with 'У пользователя'
+                          sy-uname
+                          'недостаточно полномочий на работу с программой'
+                          sy-repid.
+  Endif.
+
+  If gs_permissions-create <> gc_true.
+    Perform hide_screen_element_group using gcs-screens-sel_screen-group_create.
+  Endif.
+  If gs_permissions-change <> gc_true.
+    Perform hide_screen_element_group using gcs-screens-sel_screen-group_change.
+  Endif.
 
 *--- Реакция на нажатие кнопок на экране выбора ------------------------------*
 At selection-screen.
@@ -392,6 +431,45 @@ Form exit_screen
   Leave to screen 0.
 Endform.
 
+*&-------------------------------------------------------------------*
+*&  Есть ли полномочия на указанную операцию в таблице ZPM_USR?
+*&-------------------------------------------------------------------*
+Form check_permission
+  using
+    i_program_name type progname
+    i_user_name  type xubname
+    i_operation type zpm_auth_operation
+    i_all type zpm_auth_operation
+  changing
+    o_allowed type boolean.
+
+  Data: ls_zpm_usr type ZPM_USR.
+
+  Select single *
+    from ZPM_USR
+    into ls_zpm_usr
+    where PROGNAME = i_program_name
+      and UNAME = i_user_name
+      and ( OPERATION = i_operation or OPERATION = i_all )
+    .
+  If sy-subrc <> 0.
+    o_allowed = gc_false.
+  Else.
+    o_allowed = gc_true.
+  Endif.
+Endform.
+
+Form hide_screen_element_group
+  using iv_group_name type screen-group1.
+
+  Loop at screen.
+    If screen-group1 = iv_group_name.
+      screen-active = 0.
+    Endif.
+    Modify screen.
+  Endloop.
+Endform.
+
 Form get_data
   changing
     ot_data type ty_t_data
@@ -429,7 +507,7 @@ Form alv_1_prepare
     ls_fcat type lvc_s_fcat,
     ls_sort type lvc_s_sort.
 
-  If gc_true = gs_auth-all.
+  If gc_true = gs_permissions-all.
     ov_variant_save_mode = gcs-alv-variant_save_modes-all.
   Else.
     ov_variant_save_mode = gcs-alv-variant_save_modes-only_user.
@@ -510,7 +588,7 @@ Form alv_1_display
       Exit.
     Endif.
 
-    Perform alv_1_prepare changing gs_alv-01-t_fcat gs_alv-01-t_sort gs_alv-01-s_layo gs_alv-01-s_vari gs_auth-alv_variant_save_mode.
+    Perform alv_1_prepare changing gs_alv-01-t_fcat gs_alv-01-t_sort gs_alv-01-s_layo gs_alv-01-s_vari gs_permissions-alv_variant_save_mode.
     Create object gs_alv-01-r_handler.
     Set handler gs_alv-01-r_handler->handle_hotspot_click for gs_alv-01-r_grid.
     Set handler gs_alv-01-r_handler->handle_data_changed for gs_alv-01-r_grid.
@@ -519,7 +597,7 @@ Form alv_1_display
       exporting
         is_layout                     = gs_alv-01-s_layo
         is_variant                    = gs_alv-01-s_vari
-        i_save                        = gs_auth-alv_variant_save_mode
+        i_save                        = gs_permissions-alv_variant_save_mode
       changing
         it_outtab                     = it_data
         it_fieldcatalog               = gs_alv-01-t_fcat
