@@ -5,10 +5,19 @@ ZPMP001_1
 MANDT	MANDT	CLNT	3	0	Мандант
 STORT	STORT	CHAR	10	0	Местоположение основного средства
 UNIQUE_INDEX	ZPMP001_1_INDEX	INT4	10	0	Уникальный номер единицы ПО
+
 --Остальные поля
-MANUFACTURER	ZPMP001_1_MANUFACTURER	CHAR	48	0	Разработчик/производитель
+NAME	ZPMP001_1_NAME	CHAR	48	0	Наименование программного обеспечения
+MANUFACT_PLACE	ZPMP001_1_MANUFACTURER_PLACE	CHAR	48	0	Разработчик/производитель, местоположение
+MANUFACT_NAME	ZPMP001_1_MANUFACTURER_NAME	CHAR	48	0	Разработчик/производитель, название организации
 DATE_START	ZPMP001_1_DATE_START	CHAR	7	0	Дата ввода в эксплуатацию
 PROJECT	ZPMP001_1_PROJECT	CHAR	5	0	Номер проекта
 TYPE	ZPMP001_1_TYPE	CHAR	48	0	Тип/модель
 VERSION_ORIGINAL	ZPMP001_1_VERSION_ORIG	CHAR	48	0	Версия оригинала
 VERSION_MOD	ZPMP001_1_VERSION_MOD	CHAR	48	0	Версия изменённого ПО
+DEV_ENVIRONMENT	ZPMP001_1_DEV_ENVIRONMENT	CHAR	48	0	Среда разработки
+MOD_CAUSE	ZPMP001_1_MOD_CAUSE	CHAR	48	0	Причина модернизации ПО
+MOD_WORKER	ZPMP001_1_MOD_WORKER	CHAR	48	0	Исполнитель работ
+MOD_DATE	ZPMP001_1_MOD_DATE	CHAR	48	0	Дата модернизации ПО
+NUM_OF_COPIES	ZPMP001_1_NUMBER_OF_COPIES	INT4	10	0	Количество копий
+COMMENTARY	ZPMP001_1_COMMENT	CHAR	80	0	Примечание

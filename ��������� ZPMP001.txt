@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '03',
+    minor type n length 2 value '04',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
@@ -81,7 +81,12 @@ Constants:
       type type NAME_FELD value 'TYPE',
       version_origianl type NAME_FELD value 'VERSION_ORIGINAL',
       version_mod type NAME_FELD value 'VERSION_MOD',
+      dev_environment type NAME_FELD value 'DEV_ENVIRONMENT',
+      mod_cause type NAME_FELD value 'MOD_CAUSE',
+      mod_worker type NAME_FELD value 'MOD_WORKER',
+      mod_date type NAME_FELD value 'MOD_DATE',
       num_of_copies type NAME_FELD value 'NUM_OF_COPIES',
+      commentary type NAME_FELD value 'COMMENTARY',
     end of data_table,
   end of gcs.
 
@@ -107,6 +112,7 @@ Endclass.
 
 Data:
   gt_data type ty_t_data,
+  gv_row_count type i,
   begin of gs_auth,
     create type boolean value gc_false,
     change type boolean value gc_false,
@@ -175,10 +181,14 @@ Selection-screen begin of block b20 with frame title text-020.
     so2_type for ZPMP001_1-TYPE,
     so2_vero for ZPMP001_1-VERSION_ORIGINAL,
     so2_verm for ZPMP001_1-VERSION_MOD,
+    so2_denv for ZPMP001_1-DEV_ENVIRONMENT,
+    so2_mcau for ZPMP001_1-MOD_CAUSE,
+    so2_mwor for ZPMP001_1-MOD_WORKER,
+    so2_mdat for ZPMP001_1-MOD_DATE,
     so2_numc for ZPMP001_1-NUM_OF_COPIES default 1.
 Selection-screen end of block b20.
-Parameters:
-  p3_comm type eqkt-eqktx.
+Select-options:
+  so3_comm for ZPMP001_1-COMMENTARY.
 
 *--- Реакция на нажатие кнопок на экране выбора ------------------------------*
 At selection-screen.
@@ -186,12 +196,41 @@ At selection-screen.
 
 *--- Нажатие "Выполнить" (F8) на экране выбора (sy-ucomm = 'ONLI') -----------*
 Start-of-selection.
-  Perform get_data changing gt_data.
+  Perform get_data changing gt_data gv_row_count.
+  If gv_row_count = 0. "Обработать результат выборки из БД
+    Message i000(SU) with 'Не найдено ни одной записи'.
+    Exit.
+  Else.
+    Message s000(SU) with 'Записей найдено:' gv_row_count 'шт.'.
+  Endif.
+
 
 *--- Выборка из базы данных завершена ----------------------------------------*
 End-of-selection.
   Call screen gcs-screens-data_view-number.
 
+
+*--- Экранные модули, начало -------------------------------------------------*
+Module init_screen output. "Общий для всех экранов — установить GUI-статус
+  Set pf-status gcs-screens-status. "Установить минимальный набор функций
+  "Инициировать экземпляр ALV-Grid'а и заголовок, соответствующие текущему экрану
+  Case sy-dynnr.
+    When gcs-screens-data_view-number.
+      Set titlebar gcs-screens-data_view-title.
+      Perform alv_1_display using gt_data.
+    When others.
+      Message i000(SU) with 'Отображение ALV-Grid''а на экране' sy-dynnr 'не обрабатывается'.
+  Endcase.
+Endmodule.
+
+Module dispatch_user_command input.
+  Perform dispatch_user_command using sy-dynnr changing sy-ucomm.
+Endmodule.
+
+Module exit_screen input. "Общий для всех экранов — обработать команду выхода
+  Perform exit_screen using sy-dynnr.
+Endmodule.
+*--- Экранные модули, конец --------------------------------------------------*
 
 *&-------------------------------------------------------------------*
 *& Обработать команду от пользователя
@@ -282,31 +321,6 @@ Form show_version using ic_version like gc_version.
   Message lv_message type 'I'.
 Endform.
 
-Form get_data changing ot_data type ty_t_data.
-  Select *
-    from ZPMP001_1
-    into corresponding fields of table ot_data
-    where STORT in so1_strt
-      and NAME in so1_name
-      and DATE_START in so1_date.
-Endform.
-
-Module init_screen output. "Общий для всех экранов — установить GUI-статус
-  Set pf-status gcs-screens-status. "Установить минимальный набор функций
-  "Инициировать экземпляр ALV-Grid'а и заголовок, соответствующие текущему экрану
-  Case sy-dynnr.
-    When gcs-screens-data_view-number.
-      Set titlebar gcs-screens-data_view-title.
-      Perform alv_1_display using gt_data.
-    When others.
-      Message i000(SU) with 'Отображение ALV-Grid''а на экране' sy-dynnr 'не обрабатывается'.
-  Endcase.
-Endmodule.
-
-Module exit_screen input. "Общий для всех экранов — обработать команду выхода
-  Perform exit_screen using sy-dynnr.
-Endmodule.
-
 Form exit_screen
   using i_dynnr like sy-dynnr.
 
@@ -340,22 +354,47 @@ Form exit_screen
   Leave to screen 0.
 Endform.
 
+Form get_data
+  changing
+    ot_data type ty_t_data
+    ov_count type i.
+  Select *
+    from ZPMP001_1
+    into corresponding fields of table ot_data
+    where STORT in so1_strt
+      and NAME in so1_name
+      and MANUFACT_PLACE in so1_man1
+      and MANUFACT_NAME in so1_man2
+      and DATE_START in so1_date
+      and PROJECT in so1_proj
+      and TYPE in so2_type
+      and VERSION_ORIGINAL in so2_vero
+      and VERSION_MOD in so2_verm
+      and DEV_ENVIRONMENT in so2_denv
+      and MOD_CAUSE in so2_mcau
+      and MOD_WORKER in so2_mwor
+      and MOD_DATE in so2_mdat
+      and NUM_OF_COPIES in so2_numc
+      and COMMENTARY in so3_comm.
+  ov_count = sy-dbcnt.
+Endform.
+
 Form alv_1_prepare
   changing:
     ot_fieldcat type lvc_t_fcat
     ot_sort type lvc_t_sort
     os_layout type lvc_s_layo
     os_variant type disvariant
-    o_variant_save_mode like gcs-alv-variant_save_modes-all.
+    ov_variant_save_mode like gcs-alv-variant_save_modes-all.
 
   Data:
     ls_fcat type lvc_s_fcat,
     ls_sort type lvc_s_sort.
 
   If gc_true = gs_auth-all.
-    o_variant_save_mode = gcs-alv-variant_save_modes-all.
+    ov_variant_save_mode = gcs-alv-variant_save_modes-all.
   Else.
-    o_variant_save_mode = gcs-alv-variant_save_modes-only_user.
+    ov_variant_save_mode = gcs-alv-variant_save_modes-only_user.
   Endif.
 
 "Field catalog
@@ -374,11 +413,10 @@ Form alv_1_prepare
 
   Loop at ot_fieldcat into ls_fcat.
     "Скрыть столбцы
-*    If ls_fcat-fieldname = gcs-doc_table-key_mandt
-*    or ls_fcat-fieldname = gcs-doc_table-key_time
-*    or ls_fcat-fieldname = gcs-doc_table-key_name.
-*      ls_fcat-no_out = gc_true.
-*    Endif.
+    If ls_fcat-fieldname = gcs-data_table-key_mandt
+    or ls_fcat-fieldname = gcs-data_table-key_unique_index.
+      ls_fcat-no_out = gc_true.
+    Endif.
 
     "Определить порядок следования столбцов, удалить ненужные
 *    Case ls_fcat-fieldname.
@@ -442,17 +480,17 @@ Form alv_1_prepare
 *  Endcase.
   Sort ot_fieldcat by col_pos ascending.
 "Sort
-*  ls_sort-spos = 1.
-*  ls_sort-fieldname = gcs-doc_table-stand.
-*  ls_sort-up = gc_false.
-*  ls_sort-down = gc_true.
-*  Append ls_sort to ot_sort.
-*
-*  ls_sort-spos = 2.
-*  ls_sort-fieldname = gcs-doc_table-key_reference.
-*  ls_sort-up = gc_false.
-*  ls_sort-down = gc_true.
-*  Append ls_sort to ot_sort.
+  ls_sort-spos = 1.
+  ls_sort-fieldname = gcs-data_table-key_stort.
+  ls_sort-down = gc_false.
+  ls_sort-up = gc_true.
+  Append ls_sort to ot_sort.
+
+  ls_sort-spos = 2.
+  ls_sort-fieldname = gcs-data_table-name.
+  ls_sort-down = gc_false.
+  ls_sort-up = gc_true.
+  Append ls_sort to ot_sort.
 
 "Layout
   os_layout-cwidth_opt = gc_true.
@@ -515,7 +553,10 @@ Form alv_1_display
         others                        = 1
             .
     If sy-subrc <> 0.
-      Message e000(SU) with 'Исключ. ситуация при вызове метода' 'gs_alv-01-r_grid->set_table_for_first_display на экране' sy-dynnr.
+      Message e000(SU) with 'Исключ. ситуация при вызове метода'
+                            'gs_alv-01-r_grid->set_table_for_first_display'
+                            'на экране'
+                            sy-dynnr.
       Exit.
     Endif.
 
