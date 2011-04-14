@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '05',
+    minor type n length 2 value '06',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
@@ -40,17 +40,30 @@ Constants:
       help type sy-ucomm value 'HELP',
       version type sy-ucomm value 'VERSION',
       begin of sel_screen, "Для экрана выбора
+        goto_new type sy-ucomm value 'GOTO_NEW', "Изменил? Ищи user-command goto_new
+        goto_change type sy-ucomm value 'GOTO_CHANGE', "Изменил? Ищи user-command goto_change
+        goto_view type sy-ucomm value 'GOTO_VIEW', "Изменил? Ищи user-command goto_view
         online type sy-ucomm value 'ONLI',
       end of sel_screen,
     end of commands,
     begin of screens,
       status type gui_status value '0001', "Статус по умолчанию
+      begin of data_new, "Экран для ввода новых записей
+        number type i value 10,
+        title type gui_title value '0010',
+      end of data_new,
+      begin of data_change, "Экран для изменения и ввода записей
+        number type i value 20,
+        title type gui_title value '0020',
+      end of data_change,
       begin of data_view, "Экран для просмотра
         number type i value 30,
         title type gui_title value '0030',
       end of data_view,
       begin of sel_screen,
         number type i value 1000,
+        group1 type screen-group1 value 'CHA',"Изменил? Ищи modif id CHA
+        group2 type screen-group1 value 'VIE',"Изменил? Ищи modif id VIE
       end of sel_screen,
     end of screens,
     begin of alv, "общее для гридов (ALV-Grid)
@@ -157,6 +170,7 @@ Endclass.
 Tables:
   ZPMP001_1.
 
+Selection-screen pushbutton /1(40) text-001 user-command goto_new modif id CHA. "Добавить
 Selection-screen begin of block b10 with frame title text-010.
   Select-options:
     so1_strt for ZPMP001_1-STORT,
@@ -179,6 +193,8 @@ Selection-screen begin of block b20 with frame title text-020.
 Selection-screen end of block b20.
 Select-options:
   so3_comm for ZPMP001_1-COMMENTARY.
+Selection-screen pushbutton /1(40) text-002 user-command goto_change modif id CHA. "Изменить
+Selection-screen pushbutton /1(40) text-003 user-command goto_view modif id VIE. "Просмотреть
 
 *--- Реакция на нажатие кнопок на экране выбора ------------------------------*
 At selection-screen.
@@ -187,7 +203,7 @@ At selection-screen.
 *--- Нажатие "Выполнить" (F8) на экране выбора (sy-ucomm = 'ONLI') -----------*
 Start-of-selection.
   Perform get_data changing gt_data gv_row_count.
-  If gv_row_count = 0. "Обработать результат выборки из БД
+  If gv_row_count = 0. "Обработать результат выборки из БД, вхождение 1 из 2
     Message i000(SU) with 'Не найдено ни одной записи'.
     Exit.
   Else.
@@ -205,11 +221,17 @@ Module init_screen output. "Общий для всех экранов — установить GUI-статус
   Set pf-status gcs-screens-status. "Установить минимальный набор функций
   "Инициировать экземпляр ALV-Grid'а и заголовок, соответствующие текущему экрану
   Case sy-dynnr.
+    When gcs-screens-data_new-number.
+      Set titlebar gcs-screens-data_new-title.
+      Message s000(SU) with 'Отображение ALV-Grid''а на экране' sy-dynnr 'не сделано'.
+    When gcs-screens-data_change-number.
+      Set titlebar gcs-screens-data_change-title.
+      Message s000(SU) with 'Отображение ALV-Grid''а на экране' sy-dynnr 'не сделано'.
     When gcs-screens-data_view-number.
       Set titlebar gcs-screens-data_view-title.
       Perform alv_1_display using gt_data.
     When others.
-      Message i000(SU) with 'Отображение ALV-Grid''а на экране' sy-dynnr 'не обрабатывается'.
+      Message i000(SU) with 'Отображение ALV-Grid''а на экране' sy-dynnr 'не сделано'.
   Endcase.
 Endmodule.
 
@@ -260,12 +282,32 @@ Form dispatch_user_command
   Case iv_dynnr.
     "Команды на экране выбора
     When gcs-screens-sel_screen-number.
+
       Case lv_ucomm.
+
+        When gcs-commands-sel_screen-goto_new.
+          Call screen gcs-screens-data_new-number.
+
+        When gcs-commands-sel_screen-goto_change.
+          Call screen gcs-screens-data_change-number.
+
+        When gcs-commands-sel_screen-goto_view.
+          Perform get_data changing gt_data gv_row_count.
+          If gv_row_count = 0. "Обработать результат выборки из БД, вхождение 2 из 2
+            Message i000(SU) with 'Не найдено ни одной записи'.
+            Exit.
+          Else.
+            Message s000(SU) with 'Записей найдено:' gv_row_count 'шт.'.
+          Endif.
+          Call screen gcs-screens-data_view-number.
+
         When gcs-commands-sel_screen-online. "Нажатие "Выполнить" (F8) на экране выбора
           "ничего не делать, обработка находится в событии Start-of-selection
+
         When others. "Команда не найдена в списке обрабатываемых
           "Ничего не делать = стандартные команды на экране выбора и так обрабатываются
           Exit.
+
       Endcase.
 
     "Команды на остальных экранах = на экране со списком ЕО
@@ -319,6 +361,12 @@ Form exit_screen
     lr_exception type ref to cx_root.
 
   Case i_dynnr.
+
+    When gcs-screens-data_new-number.
+      "Нет объектов для удаления
+
+    When gcs-screens-data_change-number.
+      "Нет объектов для удаления
 
     When gcs-screens-data_view-number.
       Try.
