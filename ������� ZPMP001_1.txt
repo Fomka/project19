@@ -3,10 +3,10 @@ ZPMP001_1
 
 --Ключ
 MANDT	MANDT	CLNT	3	0	Мандант
-STORT	STORT	CHAR	10	0	Местоположение основного средства
 UNIQUE_INDEX	ZPMP001_1_INDEX	INT4	10	0	Уникальный номер единицы ПО
 
 --Остальные поля
+STORT	STORT	CHAR	10	0	Местоположение основного средства
 NAME	ZPMP001_1_NAME	CHAR	48	0	Наименование программного обеспечения
 MANUFACT_PLACE	ZPMP001_1_MANUFACTURER_PLACE	CHAR	48	0	Разработчик/производитель, местоположение
 MANUFACT_NAME	ZPMP001_1_MANUFACTURER_NAME	CHAR	48	0	Разработчик/производитель, название организации
