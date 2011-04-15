@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '10',
+    minor type n length 2 value '11',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "ћетод cl_icon->get_icon дл€ 'ICON_DELETE'
@@ -147,7 +147,6 @@ Data:
     view type boolean value gc_false,
     delete type boolean value gc_false,
     all type boolean value gc_false,
-    alv_variant_save_mode like gcs-alv-variant_save_modes-all,
   end of gs_permissions,
   gs_alv type ty_s_alv.
 
@@ -267,7 +266,7 @@ Module init_screen output. "ќбщий дл€ всех экранов Ч установить GUI-статус
 
     When gcs-screens-data_change-number.
       Set titlebar gcs-screens-data_change-title.
-      Perform alv_1_display using gt_data gs_alv-01.
+      Perform alv_1_display using gs_permissions-all changing gt_data gs_alv-01.
       Call method gs_alv-01-r_grid->set_ready_for_input
         exporting
           i_ready_for_input = 1
@@ -275,7 +274,7 @@ Module init_screen output. "ќбщий дл€ всех экранов Ч установить GUI-статус
 
     When gcs-screens-data_view-number.
       Set titlebar gcs-screens-data_view-title.
-      Perform alv_1_display using gt_data gs_alv-01.
+      Perform alv_1_display using gs_permissions-all changing gt_data gs_alv-01.
       Call method gs_alv-01-r_grid->set_ready_for_input
         exporting
           i_ready_for_input = 0
@@ -520,18 +519,11 @@ Form alv_1_prepare
     ot_fieldcat type lvc_t_fcat
     ot_sort type lvc_t_sort
     os_layout type lvc_s_layo
-    os_variant type disvariant
-    ov_variant_save_mode like gcs-alv-variant_save_modes-all.
+    os_variant type disvariant.
 
   Data:
     ls_fcat type lvc_s_fcat,
     ls_sort type lvc_s_sort.
-
-  If gc_true = gs_permissions-all.
-    ov_variant_save_mode = gcs-alv-variant_save_modes-all.
-  Else.
-    ov_variant_save_mode = gcs-alv-variant_save_modes-only_user.
-  Endif.
 
 "Field catalog
   Call function 'LVC_FIELDCATALOG_MERGE'
@@ -580,11 +572,14 @@ Form alv_1_prepare
 Endform.
 
 Form alv_1_display
+  using
+    iv_permission_for_save_all type boolean
   changing
     ot_data type ty_t_data
     os_alv type ty_s_alv-01.
 
-  Data: ls_data type ty_s_data.
+  Data: ls_data type ty_s_data,
+        lv_save_mode like gcs-alv-variant_save_modes-all.
 
   If os_alv-r_grid is initial.
     Create object os_alv-r_cont
@@ -611,16 +606,28 @@ Form alv_1_display
       Exit.
     Endif.
 
-    Perform alv_1_prepare changing os_alv-t_fcat os_alv-t_sort os_alv-s_layo os_alv-s_vari gs_permissions-alv_variant_save_mode.
+    Perform alv_1_prepare
+      changing
+        os_alv-t_fcat
+        os_alv-t_sort
+        os_alv-s_layo
+        os_alv-s_vari.
+
     Create object os_alv-r_handler.
     Set handler os_alv-r_handler->handle_hotspot_click for os_alv-r_grid.
     Set handler os_alv-r_handler->handle_data_changed for os_alv-r_grid.
+
+    If gc_true = iv_permission_for_save_all.
+      lv_save_mode = gcs-alv-variant_save_modes-all.
+    Else.
+      lv_save_mode = gcs-alv-variant_save_modes-only_user.
+    Endif.
 
     Call method os_alv-r_grid->set_table_for_first_display
       exporting
         is_layout                     = os_alv-s_layo
         is_variant                    = os_alv-s_vari
-        i_save                        = gs_permissions-alv_variant_save_mode
+        i_save                        = lv_save_mode
       changing
         it_outtab                     = ot_data
         it_fieldcatalog               = os_alv-t_fcat
