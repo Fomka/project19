@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '09',
+    minor type n length 2 value '10',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
@@ -106,10 +106,6 @@ Constants:
     end of data_table,
   end of gcs.
 
-Types:
-  ty_t_data type standard table of ZPMP001_1,
-  ty_s_data type line of ty_t_data.
-
 *&-------------------------------------------------------------------*
 *& Обработчик событий для всех ALV-Grid'ов, объявление
 *&-------------------------------------------------------------------*
@@ -126,6 +122,22 @@ Class lcl_grid_event_handler definition final.
     "Пусто
 Endclass.
 
+Types:
+  ty_t_data type standard table of ZPMP001_1,
+  ty_s_data type line of ty_t_data,
+  begin of ty_s_alv,
+    begin of 01,
+      r_grid type ref to cl_gui_alv_grid,
+      r_handler type ref to lcl_grid_event_handler,
+      r_cont type ref to cl_gui_docking_container,
+      t_fcat type lvc_t_fcat,
+      t_sort type lvc_t_sort,
+      t_excl type ui_functions,
+      s_layo type lvc_s_layo,
+      s_vari type disvariant,
+    end of 01,
+  end of ty_s_alv.
+
 Data:
   gt_data type ty_t_data,
   gv_row_count type i,
@@ -137,18 +149,7 @@ Data:
     all type boolean value gc_false,
     alv_variant_save_mode like gcs-alv-variant_save_modes-all,
   end of gs_permissions,
-  begin of gs_alv,
-    begin of 01,
-      r_grid type ref to cl_gui_alv_grid,
-      r_handler type ref to lcl_grid_event_handler,
-      r_cont type ref to cl_gui_docking_container,
-      t_fcat type lvc_t_fcat,
-      t_sort type lvc_t_sort,
-      t_excl type ui_functions,
-      s_layo type lvc_s_layo,
-      s_vari type disvariant,
-    end of 01,
-  end of gs_alv.
+  gs_alv type ty_s_alv.
 
 
 *&-------------------------------------------------------------------*
@@ -266,7 +267,7 @@ Module init_screen output. "Общий для всех экранов — установить GUI-статус
 
     When gcs-screens-data_change-number.
       Set titlebar gcs-screens-data_change-title.
-      Perform alv_1_display using gt_data.
+      Perform alv_1_display using gt_data gs_alv-01.
       Call method gs_alv-01-r_grid->set_ready_for_input
         exporting
           i_ready_for_input = 1
@@ -274,7 +275,7 @@ Module init_screen output. "Общий для всех экранов — установить GUI-статус
 
     When gcs-screens-data_view-number.
       Set titlebar gcs-screens-data_view-title.
-      Perform alv_1_display using gt_data.
+      Perform alv_1_display using gt_data gs_alv-01.
       Call method gs_alv-01-r_grid->set_ready_for_input
         exporting
           i_ready_for_input = 0
@@ -579,13 +580,14 @@ Form alv_1_prepare
 Endform.
 
 Form alv_1_display
-  using
-    it_data type ty_t_data.
+  changing
+    ot_data type ty_t_data
+    os_alv type ty_s_alv-01.
 
   Data: ls_data type ty_s_data.
 
-  If gs_alv-01-r_grid is initial.
-    Create object gs_alv-01-r_cont
+  If os_alv-r_grid is initial.
+    Create object os_alv-r_cont
       exporting
         repid         = sy-repid
         dynnr         = sy-dynnr
@@ -598,9 +600,9 @@ Form alv_1_display
       Message e000(SU) with 'Не удалось создать экземпляр' 'docking-контейнера на экране' sy-dynnr.
       Exit.
     Endif.
-    Create object gs_alv-01-r_grid
+    Create object os_alv-r_grid
       exporting
-        i_parent          = gs_alv-01-r_cont
+        i_parent          = os_alv-r_cont
       exceptions
         others            = 1
         .
@@ -609,33 +611,33 @@ Form alv_1_display
       Exit.
     Endif.
 
-    Perform alv_1_prepare changing gs_alv-01-t_fcat gs_alv-01-t_sort gs_alv-01-s_layo gs_alv-01-s_vari gs_permissions-alv_variant_save_mode.
-    Create object gs_alv-01-r_handler.
-    Set handler gs_alv-01-r_handler->handle_hotspot_click for gs_alv-01-r_grid.
-    Set handler gs_alv-01-r_handler->handle_data_changed for gs_alv-01-r_grid.
+    Perform alv_1_prepare changing os_alv-t_fcat os_alv-t_sort os_alv-s_layo os_alv-s_vari gs_permissions-alv_variant_save_mode.
+    Create object os_alv-r_handler.
+    Set handler os_alv-r_handler->handle_hotspot_click for os_alv-r_grid.
+    Set handler os_alv-r_handler->handle_data_changed for os_alv-r_grid.
 
-    Call method gs_alv-01-r_grid->set_table_for_first_display
+    Call method os_alv-r_grid->set_table_for_first_display
       exporting
-        is_layout                     = gs_alv-01-s_layo
-        is_variant                    = gs_alv-01-s_vari
+        is_layout                     = os_alv-s_layo
+        is_variant                    = os_alv-s_vari
         i_save                        = gs_permissions-alv_variant_save_mode
       changing
-        it_outtab                     = it_data
-        it_fieldcatalog               = gs_alv-01-t_fcat
-        it_sort                       = gs_alv-01-t_sort
+        it_outtab                     = ot_data
+        it_fieldcatalog               = os_alv-t_fcat
+        it_sort                       = os_alv-t_sort
       exceptions
         others                        = 1
             .
     If sy-subrc <> 0.
       Message e000(SU) with 'Исключ. ситуация при вызове метода'
-                            'gs_alv-01-r_grid->set_table_for_first_display'
+                            'os_alv-r_grid->set_table_for_first_display'
                             'на экране'
                             sy-dynnr.
       Exit.
     Endif.
 
   Else.
-    Call method gs_alv-01-r_grid->refresh_table_display
+    Call method os_alv-r_grid->refresh_table_display
       exporting
         is_stable = gcs-alv-stable_refresh.
   Endif.
