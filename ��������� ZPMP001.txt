@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '07',
+    minor type n length 2 value '09',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
@@ -242,7 +242,7 @@ At selection-screen.
 *--- Нажатие "Выполнить" (F8) на экране выбора (sy-ucomm = 'ONLI') -----------*
 Start-of-selection.
   Perform get_data changing gt_data gv_row_count.
-  If gv_row_count = 0. "Обработать результат выборки из БД, вхождение 1 из 2
+  If gv_row_count = 0. "Обработать результат выборки из БД, вхождение 1 из 3
     Message i000(SU) with 'Не найдено ни одной записи'.
     Exit.
   Else.
@@ -263,12 +263,23 @@ Module init_screen output. "Общий для всех экранов — установить GUI-статус
     When gcs-screens-data_new-number.
       Set titlebar gcs-screens-data_new-title.
       Message s000(SU) with 'Отображение ALV-Grid''а на экране' sy-dynnr 'не сделано'.
+
     When gcs-screens-data_change-number.
       Set titlebar gcs-screens-data_change-title.
-      Message s000(SU) with 'Отображение ALV-Grid''а на экране' sy-dynnr 'не сделано'.
+      Perform alv_1_display using gt_data.
+      Call method gs_alv-01-r_grid->set_ready_for_input
+        exporting
+          i_ready_for_input = 1
+          .
+
     When gcs-screens-data_view-number.
       Set titlebar gcs-screens-data_view-title.
       Perform alv_1_display using gt_data.
+      Call method gs_alv-01-r_grid->set_ready_for_input
+        exporting
+          i_ready_for_input = 0
+          .
+
     When others.
       Message i000(SU) with 'Отображение ALV-Grid''а на экране' sy-dynnr 'не сделано'.
   Endcase.
@@ -328,11 +339,19 @@ Form dispatch_user_command
           Call screen gcs-screens-data_new-number.
 
         When gcs-commands-sel_screen-goto_change.
+          Perform get_data changing gt_data gv_row_count.
+          If gv_row_count = 0. "Обработать результат выборки из БД, вхождение 2 из 3
+            Message i000(SU) with 'Не найдено ни одной записи'.
+            Exit.
+          Else.
+            Message s000(SU) with 'Записей найдено:' gv_row_count 'шт.'.
+          Endif.
+
           Call screen gcs-screens-data_change-number.
 
         When gcs-commands-sel_screen-goto_view.
           Perform get_data changing gt_data gv_row_count.
-          If gv_row_count = 0. "Обработать результат выборки из БД, вхождение 2 из 2
+          If gv_row_count = 0. "Обработать результат выборки из БД, вхождение 2 из 3
             Message i000(SU) with 'Не найдено ни одной записи'.
             Exit.
           Else.
@@ -404,10 +423,9 @@ Form exit_screen
     When gcs-screens-data_new-number.
       "Нет объектов для удаления
 
-    When gcs-screens-data_change-number.
-      "Нет объектов для удаления
+    When gcs-screens-data_change-number
+      or gcs-screens-data_view-number.
 
-    When gcs-screens-data_view-number.
       Try.
         Call method gs_alv-01-r_grid->free.
         Call method gs_alv-01-r_cont->free.
@@ -474,6 +492,7 @@ Form get_data
   changing
     ot_data type ty_t_data
     ov_count type i.
+  "Выбрать записи, перезаписав таблицу ot_data
   Select *
     from ZPMP001_1
     into corresponding fields of table ot_data
@@ -528,10 +547,12 @@ Form alv_1_prepare
   Endif.
 
   Loop at ot_fieldcat into ls_fcat.
-    "Скрыть столбцы
+    "Скрыть столбцы, показываемые столбцы сделать редактируемыми
     If ls_fcat-fieldname = gcs-data_table-key_mandt
     or ls_fcat-fieldname = gcs-data_table-key_unique_index.
       ls_fcat-no_out = gc_true.
+    Else.
+      ls_fcat-edit = gc_true.
     Endif.
 
     Modify ot_fieldcat from ls_fcat.
