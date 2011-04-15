@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '11',
+    minor type n length 2 value '12',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
@@ -107,7 +107,7 @@ Constants:
   end of gcs.
 
 *&-------------------------------------------------------------------*
-*& Обработчик событий для всех ALV-Grid'ов, объявление
+*& Обработчик событий для всех типов ALV-гридов, объявление
 *&-------------------------------------------------------------------*
 Class lcl_grid_event_handler definition final.
   Public section.
@@ -152,7 +152,7 @@ Data:
 
 
 *&-------------------------------------------------------------------*
-*& Обработчик событий для всех ALV-Grid'ов, реализация
+*& Обработчик событий для всех типов ALV-гридов, реализация
 *&-------------------------------------------------------------------*
 Class lcl_grid_event_handler implementation.
   Method handle_hotspot_click.
@@ -283,19 +283,19 @@ Module init_screen output. "Общий для всех экранов — установить GUI-статус
     When others.
       Message i000(SU) with 'Отображение ALV-Grid''а на экране' sy-dynnr 'не сделано'.
   Endcase.
-Endmodule.
+Endmodule. "init_screen
 
 Module dispatch_user_command input.
   Perform dispatch_user_command using sy-dynnr changing sy-ucomm.
-Endmodule.
+Endmodule. "dispatch_user_command
 
 Module exit_screen input. "Общий для всех экранов — обработать команду выхода
   Perform exit_screen using sy-dynnr.
-Endmodule.
+Endmodule. "exit_screen
 *--- Экранные модули, конец --------------------------------------------------*
 
 *&-------------------------------------------------------------------*
-*& Обработать команду от пользователя
+*&   Общая обработка команд от пользователя на всех экранах
 *&-------------------------------------------------------------------*
 Form dispatch_user_command
   using
@@ -303,10 +303,7 @@ Form dispatch_user_command
   changing
     ov_ucomm type sy-ucomm.
 
-  Data: lv_ucomm type sy-ucomm,
-        lv_buk type bukrs,
-        lv_cursor_field type c length 30,
-        lv_cursor_value type c length 30.
+  Data: lv_ucomm type sy-ucomm.
 
   lv_ucomm = ov_ucomm. "ov_ucomm очищается при успешном завершении подпрограммы
 
@@ -374,12 +371,18 @@ Form dispatch_user_command
   Endcase.
 
   Clear ov_ucomm. "ov_ucomm очищается при успешном завершении подпрограммы
-Endform.
+Endform. "dispatch_user_command
 
+*&-------------------------------------------------------------------*
+*&   Показать справку по программе (сейчас это список скрытых команд)
+*&-------------------------------------------------------------------*
 Form show_help.
   Message i000(SU) with 'Скрытые команды: HELP, VERSION'.
-Endform.
+Endform. "show_help
 
+*&-------------------------------------------------------------------*
+*&   Показать информацию о версии программы (инф. берётся из констант)
+*&-------------------------------------------------------------------*
 Form show_version using ic_version like gc_version.
   Data:
     lv_message type string,
@@ -409,8 +412,11 @@ Form show_version using ic_version like gc_version.
   Concatenate lv_message lv_substring
     into lv_message separated by '. '.
   Message lv_message type 'I'.
-Endform.
+Endform. "show_version
 
+*&-------------------------------------------------------------------*
+*&   Уничтожить объекты на указанном экране, перейти на предыдущий
+*&-------------------------------------------------------------------*
 Form exit_screen
   using i_dynnr like sy-dynnr.
 
@@ -447,10 +453,10 @@ Form exit_screen
 
   "Вернуться на предыдущий экран, с которого был вызван текущий
   Leave to screen 0.
-Endform.
+Endform. "exit_screen
 
 *&-------------------------------------------------------------------*
-*&  Есть ли полномочия на указанную операцию в таблице ZPM_USR?
+*&  Есть ли в таблице ZPM_USR полномочия на указанную операцию?
 *&-------------------------------------------------------------------*
 Form check_permission
   using
@@ -475,8 +481,14 @@ Form check_permission
   Else.
     o_allowed = gc_true.
   Endif.
-Endform.
+Endform. "check_permission
 
+*&-------------------------------------------------------------------*
+*&   Скрыть на текущем экране элементы управления, принадлежащие
+*& указанной группе.
+*&
+*&  -> iv_group_name = название группы, элементы которой будут скрыты
+*&-------------------------------------------------------------------*
 Form hide_screen_element_group
   using iv_group_name type screen-group1.
 
@@ -486,8 +498,14 @@ Form hide_screen_element_group
     Endif.
     Modify screen.
   Endloop.
-Endform.
+Endform. "hide_screen_element_group
 
+*&-------------------------------------------------------------------*
+*&   Заполнить внутреннюю таблицу данными из базы данных
+*&
+*& <-> ot_data = вн. таблица (источник задан константой — ZPMP001_1)
+*& <-> ov_count = количество строк, выбранных из БД во вн. таблицу
+*&-------------------------------------------------------------------*
 Form get_data
   changing
     ot_data type ty_t_data
@@ -512,8 +530,18 @@ Form get_data
       and NUM_OF_COPIES in so2_numc
       and COMMENTARY in so3_comm.
   ov_count = sy-dbcnt.
-Endform.
+Endform. "get_data
 
+*&-------------------------------------------------------------------*
+*&   Подготовить набор объектов, необходимый для отображения ALV-грида
+*& Структура грида заполняется из таблицы ZPMP001_1, которая задана
+*& через глобальную константу gcs-data_table-table_name.
+*&
+*& <-> ot_fieldcat = структура грида (набор столбцов)
+*& <-> ot_sort = правила сортировки
+*& <-> os_layout = общие настройки внешнего вида
+*& <-> os_variant = вариант внешнего вида, заданный по умолчанию
+*&-------------------------------------------------------------------*
 Form alv_1_prepare
   changing:
     ot_fieldcat type lvc_t_fcat
@@ -540,12 +568,15 @@ Form alv_1_prepare
   Endif.
 
   Loop at ot_fieldcat into ls_fcat.
-    "Скрыть столбцы, показываемые столбцы сделать редактируемыми
+  "Обработать все столбцы
     If ls_fcat-fieldname = gcs-data_table-key_mandt
     or ls_fcat-fieldname = gcs-data_table-key_unique_index.
+    "Скрыть столбцы, чьи поля относятся к первичному ключу
       ls_fcat-no_out = gc_true.
     Else.
+    "Показываемые столбцы сделать доступными для изменения содержимого
       ls_fcat-edit = gc_true.
+    "Ещё нужно вызвать метод set_ready_for_input, что сделано в другом месте
     Endif.
 
     Modify ot_fieldcat from ls_fcat.
@@ -568,9 +599,22 @@ Form alv_1_prepare
   os_layout-cwidth_opt = gc_true.
 
 "Variant
-  os_variant-report = sy-repid.
-Endform.
+  os_variant-report = sy-repid. "использовать вариант по умолчанию, если есть
+Endform. "alv_1_prepare
 
+*&-------------------------------------------------------------------*
+*&   Показать/обновить грид типа 1 на текущем экране в контейнере
+*& класса cl_gui_docking_container. Данные для грида — в ot_data.
+*& Структура и внешний вид грида задаются подпрограммой alv_1_prepare
+*& из таблицы ZPMP001_1, которая задана через глобальную константу
+*& gcs-data_table-table_name.
+*&
+*&  -> iv_permission_for_save_all = разрешение сохранять формат грида
+*&     и локально для пользователя, и глобально для всех пользователей
+*& <-> ot_data = внутренняя таблица с данными из таблицы БД
+*& <-> os_alv = набор объектов, необходимый для отображения ALV-грида
+*&
+*&-------------------------------------------------------------------*
 Form alv_1_display
   using
     iv_permission_for_save_all type boolean
@@ -578,8 +622,7 @@ Form alv_1_display
     ot_data type ty_t_data
     os_alv type ty_s_alv-01.
 
-  Data: ls_data type ty_s_data,
-        lv_save_mode like gcs-alv-variant_save_modes-all.
+  Data: lv_save_mode like gcs-alv-variant_save_modes-all.
 
   If os_alv-r_grid is initial.
     Create object os_alv-r_cont
@@ -648,4 +691,4 @@ Form alv_1_display
       exporting
         is_stable = gcs-alv-stable_refresh.
   Endif.
-Endform.
+Endform. "alv_1_display
