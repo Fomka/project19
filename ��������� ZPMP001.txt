@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '12',
+    minor type n length 2 value '13',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
@@ -52,6 +52,12 @@ Constants:
         goto_view type sy-ucomm value 'GOTO_VIEW', "Изменил? Ищи user-command goto_view
         online type sy-ucomm value 'ONLI',
       end of sel_screen,
+      begin of change_screen,
+        save type sy-ucomm value 'SAVE',
+      end of change_screen,
+      begin of new_screen,
+        save type sy-ucomm value 'SAVE',
+      end of new_screen,
     end of commands,
     begin of screens,
       status type gui_status value '0001', "Статус по умолчанию
@@ -114,16 +120,13 @@ Class lcl_grid_event_handler definition final.
     Methods:
       handle_hotspot_click
         for event hotspot_click of cl_gui_alv_grid
-          importing sender e_column_id es_row_no,
-      handle_data_changed
-        for event data_changed of cl_gui_alv_grid
-          importing sender er_data_changed.
+          importing sender e_column_id es_row_no.
   Private section.
     "Пусто
 Endclass.
 
 Types:
-  ty_t_data type standard table of ZPMP001_1,
+  ty_t_data type standard table of ZPMP001_1 with key mandt unique_index,
   ty_s_data type line of ty_t_data,
   begin of ty_s_alv,
     begin of 01,
@@ -140,6 +143,7 @@ Types:
 
 Data:
   gt_data type ty_t_data,
+  gt_data_before type ty_t_data, "Состояние gt_data при переходе на экран изменений
   gv_row_count type i,
   begin of gs_permissions,
     create type boolean value gc_false,
@@ -165,12 +169,6 @@ Class lcl_grid_event_handler implementation.
     Endcase.
   Endmethod.
 
-  Method handle_data_changed.
-    Case sender.
-      When others.
-        Message i000(SU) with 'Событие data_changed' 'не обрабатывается для этого ALV-Grid''а'.
-    Endcase.
-  Endmethod.
 Endclass.
 
 
@@ -271,6 +269,7 @@ Module init_screen output. "Общий для всех экранов — установить GUI-статус
         exporting
           i_ready_for_input = 1
           .
+      Move gt_data to gt_data_before. "Запомнить содержимое до изменений, 1 из 2
 
     When gcs-screens-data_view-number.
       Set titlebar gcs-screens-data_view-title.
@@ -365,6 +364,17 @@ Form dispatch_user_command
 
       Endcase.
 
+    When gcs-screens-data_change-number.
+      Case lv_ucomm.
+        When gcs-commands-change_screen-save.
+          Perform save_data
+            using gs_alv-01
+            changing gt_data_before
+                     gt_data.
+        When others. "Команда не найдена в списке обрабатываемых
+          Message i000(SU) with 'На экране' iv_dynnr 'не обрабатывается команда' lv_ucomm.
+      Endcase.
+
     "Команды на остальных экранах = на экране со списком ЕО
     When others.
       Message i000(SU) with 'На экране' iv_dynnr 'не обрабатывается команда' lv_ucomm.
@@ -431,7 +441,6 @@ Form exit_screen
 
     When gcs-screens-data_change-number
       or gcs-screens-data_view-number.
-
       Try.
         Call method gs_alv-01-r_grid->free.
         Call method gs_alv-01-r_cont->free.
@@ -649,6 +658,19 @@ Form alv_1_display
       Exit.
     Endif.
 
+    "Задать способ подтягивания изменений в таблице ALV-Grid'а
+    Call method os_alv-r_grid->register_edit_event
+      exporting
+        i_event_id = cl_gui_alv_grid=>mc_evt_enter "Enter либо двойной щелчок
+*        i_event_id = cl_gui_alv_grid=>mc_evt_modified "когда курсор покидает ячейку
+      exceptions
+        others     = 1
+            .
+    If sy-subrc <> 0.
+      Message e000(SU) with 'Исключ. ситуация при вызове' 'os_alv-r_grid->register_edit_event'.
+      Exit.
+    Endif.
+
     Perform alv_1_prepare
       changing
         os_alv-t_fcat
@@ -658,7 +680,6 @@ Form alv_1_display
 
     Create object os_alv-r_handler.
     Set handler os_alv-r_handler->handle_hotspot_click for os_alv-r_grid.
-    Set handler os_alv-r_handler->handle_data_changed for os_alv-r_grid.
 
     If gc_true = iv_permission_for_save_all.
       lv_save_mode = gcs-alv-variant_save_modes-all.
@@ -692,3 +713,132 @@ Form alv_1_display
         is_stable = gcs-alv-stable_refresh.
   Endif.
 Endform. "alv_1_display
+
+*&-------------------------------------------------------------------*
+*&   Сохранить данные, введённые в ALV-грид. Сохраняемые строки находятся
+*& через сравнение содержимого привязанной к ALV-гриду внутренней таблицы в
+*& два момента: до и после вызова метода check_changed_data.
+*&
+*&   -> is_alv = структура объектов, относящихся к ALV-гриду
+*&  <-> ot_data =  таблица, привязанная к ALV-гриду в методе
+*&      set_table_for_first_display класса cl_gui_alv_grid
+*&-------------------------------------------------------------------*
+Form save_data
+  using
+    is_alv type ty_s_alv-01
+  changing
+    ot_data_before type ty_t_data
+    ot_data type ty_t_data.
+
+  Data:
+    lt_del_rows type ty_t_data, "строки, которые были удалены после вызова
+    lt_ins_rows type ty_t_data, "-//- вставлены
+    lt_mod_rows type ty_t_data. "-//- изменены.
+
+  If ot_data_before is initial.
+    Exit.
+  Endif.
+
+"Подтянуть текущее состояние ячеек ALV-грида в связанную с ним таблицу ot_data
+  Call method is_alv-r_grid->check_changed_data
+*    importing
+*      e_valid   = "данные не проверяются на правильность ввода
+*    changing
+*      c_refresh = 'X'
+      .
+
+"Найти отличия между тем, что было в гриде до и после вызова check_changed_data
+  "Обработать удалённые строки
+    Perform subtract_set  "Из "До" вычесть "После"
+      using ot_data_before
+            ot_data
+      changing lt_del_rows.
+  "Обработать изменённые строки
+    Perform subtract_set  "Из "После" вычесть "До"
+      using ot_data
+            ot_data_before
+      changing lt_ins_rows.
+  "Обработать добавленные строки
+    Perform get_rows_with_mod_content
+      using ot_data
+            ot_data_before
+      changing lt_mod_rows.
+
+  Move ot_data to ot_data_before. "Запомнить содержимое до изменений, 2 из 2
+Endform. "save_data
+
+*&-------------------------------------------------------------------*
+*&   Вычесть из множества записей в первой таблице множество записей из
+*& второй таблицы и выдать множество-разность. Записи сравнивать по ключевым
+*& полям (MANDT, UNIQUE_INDEX), не сравнивать содержимое остальных полей.
+*&
+*&  -> it_minuend = уменьшаемое множество
+*&  -> it_subtrahend = вычитаемое множество
+*& <-> ot_difference = множество-разность
+*&-------------------------------------------------------------------*
+Form subtract_set
+  using
+    it_minuend type ty_t_data "уменьшаемое множество
+    it_subtrahend type ty_t_data "вычитаемое множество
+  changing
+    ot_difference type ty_t_data. "множество-разность
+
+  Data:
+    ls_subtrahend type ty_s_data.
+
+  Move it_minuend to ot_difference.
+  Loop at it_subtrahend into ls_subtrahend.
+    Delete table ot_difference
+      with table key
+        mandt = ls_subtrahend-mandt
+        unique_index = ls_subtrahend-unique_index.
+  Endloop.
+Endform. "subtract_set
+
+*&-------------------------------------------------------------------*
+*&   Выдать те строки из первой входной таблицы, у которых ключевые поля
+*& совпадают со строками из второй входной таблицы, а содержимое - не
+*& совпадает.
+*&
+*&  -> it_set_1 = первая входная таблица
+*&  -> it_set_2 = вторая входная таблица
+*& <-> ot_rows_with_mod_content = искомые строки из первой входной таблицы
+*&-------------------------------------------------------------------*
+Form get_rows_with_mod_content
+  using
+    it_set_1 type ty_t_data
+    it_set_2 type ty_t_data
+  changing
+    ot_rows_with_mod_content type ty_t_data.
+
+  Data:
+    ls_1 type ty_s_data,
+    ls_2 type ty_s_data, "#EC NEEDED смотри Read table it_set_2 ниже
+    lt_intersection type ty_t_data, "Пересечение по ключу
+    ls_intersection type ty_s_data.
+
+  Refresh ot_rows_with_mod_content.
+
+  Loop at it_set_1 into ls_1.
+    Read table it_set_2
+      with table key
+        mandt = ls_1-mandt
+        unique_index = ls_1-unique_index
+      into ls_2.
+    If sy-subrc = 0. "Пересечение
+      Append ls_1 to lt_intersection. "содержимое из первой таблицы
+    Endif.
+  Endloop.
+
+"Определены строки с совпадающими ключами из первой и второй входной таблицы
+
+  Loop at lt_intersection into ls_intersection.
+    Read table it_set_2
+      with key table_line = ls_intersection
+      into ls_2.
+    If sy-subrc <> 0. "Содержимое из 2й таблицы отличается от содержимого 1й
+      Append ls_intersection to ot_rows_with_mod_content.
+    Endif.
+  Endloop.
+
+Endform. "get_rows_with_mod_content
