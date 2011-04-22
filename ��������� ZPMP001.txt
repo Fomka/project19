@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '17',
+    minor type n length 2 value '18',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
@@ -93,8 +93,8 @@ Constants:
     begin of data_table,
       table_name type TABNAME value 'ZPMP001_1',
       key_mandt type NAME_FELD value 'MANDT',
-      key_stort type NAME_FELD value 'STORT',
       key_unique_index type NAME_FELD value 'UNIQUE_INDEX',
+      stort type NAME_FELD value 'STORT',
       name type NAME_FELD value 'NAME',
       manufact_place type NAME_FELD value 'MANUFACT_PLACE',
       manufact_name type NAME_FELD value 'MANUFACT_NAME',
@@ -606,7 +606,7 @@ Form alv_1_prepare
 
 "Sort
   ls_sort-spos = 1.
-  ls_sort-fieldname = gcs-data_table-key_stort.
+  ls_sort-fieldname = gcs-data_table-stort.
   ls_sort-down = gc_false.
   ls_sort-up = gc_true.
   Append ls_sort to ot_sort.
@@ -938,12 +938,12 @@ Form alv_1_handle_data_changed
 "Проверить правильность введённого местоположения
   Loop at lt_mod_cells
     into ls_mod_cell
-    where fieldname = gcs-data_table-key_stort. "TODO переименовать key_stort в stort
+    where fieldname = gcs-data_table-stort.
 
     Call method ir_data_changed->get_cell_value
       exporting
         i_row_id    = ls_mod_cell-row_id
-        i_fieldname = gcs-data_table-key_stort
+        i_fieldname = gcs-data_table-stort
       importing
         e_value     = lv_value.
     "TODO "Проверить правильность введённого местоположения
