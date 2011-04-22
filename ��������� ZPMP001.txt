@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '16',
+    minor type n length 2 value '17',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
@@ -120,7 +120,10 @@ Class lcl_grid_event_handler definition final.
     Methods:
       handle_hotspot_click
         for event hotspot_click of cl_gui_alv_grid
-          importing sender e_column_id es_row_no.
+          importing sender e_column_id es_row_no,
+      handle_data_changed
+        for event data_changed of cl_gui_alv_grid
+          importing sender er_data_changed.
   Private section.
     "Пусто
 Endclass.
@@ -168,7 +171,17 @@ Class lcl_grid_event_handler implementation.
         Message i000(SU) with 'Событие hotspot_click' 'не обрабатывается для этого ALV-Grid''а'.
     Endcase.
   Endmethod.
-
+  Method handle_data_changed.
+    Case sender.
+      When gs_alv-01-r_grid.
+        "Использовать экземпляр класса, передаваемый через сообщение
+        Perform alv_1_handle_data_changed
+          using er_data_changed
+          changing gt_data.
+      When others.
+        Message i000(SU) with 'Событие data_changed' 'не обрабатывается для этого ALV-Grid''а'.
+    Endcase.
+  Endmethod.
 Endclass.
 
 
@@ -680,6 +693,7 @@ Form alv_1_display
 
     Create object os_alv-r_handler.
     Set handler os_alv-r_handler->handle_hotspot_click for os_alv-r_grid.
+    Set handler os_alv-r_handler->handle_data_changed for os_alv-r_grid.
 
     If gc_true = iv_permission_for_save_all.
       lv_save_mode = gcs-alv-variant_save_modes-all.
@@ -889,3 +903,67 @@ Form get_rows_with_mod_content
   Endloop.
 
 Endform. "get_rows_with_mod_content
+
+*&-------------------------------------------------------------------*
+*&   Подставить уникальный индекс в первую ячейку добавленных строк.
+*& Проверить корректность введённых данных
+*&-------------------------------------------------------------------*
+Form alv_1_handle_data_changed
+  using
+    ir_data_changed type ref to cl_alv_changed_data_protocol
+  changing
+    ot_data type ty_t_data.
+
+  Data: lt_mod_cells type lvc_t_modi,
+        ls_mod_cell type lvc_s_modi,
+        lv_value type lvc_value.
+
+  Move ir_data_changed->mt_mod_cells to lt_mod_cells.
+  Sort lt_mod_cells by row_id.
+
+"Подставить уникальный индекс
+  Loop at lt_mod_cells
+    into ls_mod_cell
+    where fieldname = gcs-data_table-key_unique_index.
+
+    Call method ir_data_changed->get_cell_value
+      exporting
+        i_row_id    = ls_mod_cell-row_id
+        i_fieldname = gcs-data_table-key_unique_index
+      importing
+        e_value     = lv_value.
+    "curr "Подставить уникальный индекс
+  Endloop.
+
+"Проверить правильность введённого местоположения
+  Loop at lt_mod_cells
+    into ls_mod_cell
+    where fieldname = gcs-data_table-key_stort. "TODO переименовать key_stort в stort
+
+    Call method ir_data_changed->get_cell_value
+      exporting
+        i_row_id    = ls_mod_cell-row_id
+        i_fieldname = gcs-data_table-key_stort
+      importing
+        e_value     = lv_value.
+    "TODO "Проверить правильность введённого местоположения
+    Call method ir_data_changed->add_protocol_entry
+      exporting
+        i_msgid = 'SU'
+        i_msgno = '000'
+        i_msgty = 'E'
+        i_msgv1 = 'Тест'
+        i_msgv2 = lv_value
+        i_msgv3 = 'Местоположение сброшено на 13'
+        i_fieldname = ls_mod_cell-fieldname
+        i_row_id = ls_mod_cell-row_id.
+
+    Call method ir_data_changed->modify_cell
+      exporting
+        i_row_id      = ls_mod_cell-row_id
+        i_fieldname   = ls_mod_cell-fieldname
+        i_value       = '13'.
+
+  Endloop.
+
+Endform. "alv_1_handle_data_changed
