@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '13',
+    minor type n length 2 value '16',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
@@ -126,7 +126,7 @@ Class lcl_grid_event_handler definition final.
 Endclass.
 
 Types:
-  ty_t_data type standard table of ZPMP001_1 with key mandt unique_index,
+  ty_t_data type ZPMP001_1_TABLE_TYPE,
   ty_s_data type line of ty_t_data,
   begin of ty_s_alv,
     begin of 01,
@@ -731,9 +731,14 @@ Form save_data
     ot_data type ty_t_data.
 
   Data:
-    lt_del_rows type ty_t_data, "строки, которые были удалены после вызова
+    lt_del_rows type ZPMP001_1_TABLE_TYPE, "строки, которые были удалены после вызова
     lt_ins_rows type ty_t_data, "-//- вставлены
-    lt_mod_rows type ty_t_data. "-//- изменены.
+    lt_mod_rows type ty_t_data, "-//- изменены
+    begin of ls_num_of,
+      deleted type i,
+      inserted type i,
+      modified type i,
+    end of ls_num_of.
 
   If ot_data_before is initial.
     Exit.
@@ -753,17 +758,60 @@ Form save_data
       using ot_data_before
             ot_data
       changing lt_del_rows.
-  "Обработать изменённые строки
+  "Обработать добавленные строки
     Perform subtract_set  "Из "После" вычесть "До"
       using ot_data
             ot_data_before
       changing lt_ins_rows.
-  "Обработать добавленные строки
+  "Обработать изменённые строки
     Perform get_rows_with_mod_content
       using ot_data
             ot_data_before
       changing lt_mod_rows.
 
+"Применить изменения к таблице ZPMP001_1
+  Call function 'ZPMP001_1_DELETE'
+    exporting
+      it_records = lt_del_rows
+    importing
+      o_num_of_processed = ls_num_of-deleted
+    exceptions
+      db_error = 1.
+  If sy-subrc <> 0.
+    Message e000(su) with 'Ошибка при вызове ZPMP001_1_DELETE.'
+                          'Содержимое таблицы ZPMP001_1 не изменено.'.
+    Exit.
+  Endif.
+*  Call function 'ZPMP001_1_INSERT'
+*    exporting
+*      it_records = lt_ins_rows
+*    importing
+*      o_num_of_processed = ls_num_of-inserted
+*    exceptions
+*      db_error = 1
+*      nums_not_equal = 2.
+*  If sy-subrc <> 0.
+*    Message e000(su) with 'Ошибка при вызове ZPMP001_1_INSERT.'
+*                          'Содержимое таблицы ZPMP001_1 не изменено.'.
+*    Exit.
+*  Endif.
+  Call function 'ZPMP001_1_MODIFY'
+    exporting
+      it_records = lt_mod_rows
+    importing
+      o_num_of_processed = ls_num_of-modified
+    exceptions
+      db_error = 1.
+  If sy-subrc <> 0.
+    Message e000(su) with 'Ошибка при вызове ZPMP001_1_MODIFY.'
+                          'Содержимое таблицы ZPMP001_1 не изменено.'.
+    Exit.
+  Endif.
+
+  Message i000(su) with 'Удалено/добавлено/изменено строк:'
+                        ls_num_of-deleted
+                        'N/A'"ls_num_of-inserted "нужно автоматически задавать unique_index
+                        ls_num_of-modified.
   Move ot_data to ot_data_before. "Запомнить содержимое до изменений, 2 из 2
 Endform. "save_data
 
@@ -788,10 +836,9 @@ Form subtract_set
 
   Move it_minuend to ot_difference.
   Loop at it_subtrahend into ls_subtrahend.
-    Delete table ot_difference
-      with table key
-        mandt = ls_subtrahend-mandt
-        unique_index = ls_subtrahend-unique_index.
+    Delete ot_difference
+      where mandt = ls_subtrahend-mandt
+        and unique_index = ls_subtrahend-unique_index.
   Endloop.
 Endform. "subtract_set
 
@@ -821,7 +868,7 @@ Form get_rows_with_mod_content
 
   Loop at it_set_1 into ls_1.
     Read table it_set_2
-      with table key
+      with key
         mandt = ls_1-mandt
         unique_index = ls_1-unique_index
       into ls_2.
