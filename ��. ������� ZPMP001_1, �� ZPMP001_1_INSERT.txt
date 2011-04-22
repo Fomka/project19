@@ -1,0 +1,44 @@
+FUNCTION ZPMP001_1_INSERT .
+*"----------------------------------------------------------------------
+*"*"Локальный интерфейс:
+*"  IMPORTING
+*"     REFERENCE(IT_RECORDS) TYPE  ZPMP001_1_TABLE_TYPE
+*"  EXPORTING
+*"     REFERENCE(O_NUM_OF_PROCESSED) TYPE  I
+*"  EXCEPTIONS
+*"      DB_ERROR
+*"      NUMS_NOT_EQUAL
+*"----------------------------------------------------------------------
+  Data:
+    lv_num_of_input_records type i, "количество вставляемых строк
+    lr_error type ref to CX_ROOT.
+
+"Вставить все переданные записи за один раз
+  Try.
+    Insert ZPMP001_1
+      from table it_records.
+  Catch CX_SY_OPEN_SQL_DB into lr_error.
+  "Если произошла ошибка, то отменить все изменения и выйти
+    Rollback work.
+    Raise DB_ERROR.
+  Endtry.
+
+  If sy-subrc <> 0.
+  "Если произошла ошибка, то отменить все изменения и выйти
+    Rollback work.
+    Raise DB_ERROR.
+  Else.
+    o_num_of_processed = sy-dbcnt.
+  Endif.
+
+  Describe table it_records lines lv_num_of_input_records.
+  If lv_num_of_input_records = o_num_of_processed.
+  "Успешно вставлены все записи — подтвердить все изменения
+    Commit work and wait.
+  Else.
+  "Если произошла ошибка, то отменить все изменения и выйти
+    Rollback work.
+    Raise NUMS_NOT_EQUAL.
+  Endif.
+
+Endfunction.

@@ -1,0 +1,35 @@
+FUNCTION ZPMP001_1_DELETE .
+*"----------------------------------------------------------------------
+*"*"Локальный интерфейс:
+*"  IMPORTING
+*"     REFERENCE(IT_RECORDS) TYPE  ZPMP001_1_TABLE_TYPE
+*"  EXPORTING
+*"     REFERENCE(O_NUM_OF_PROCESSED) TYPE  I
+*"  EXCEPTIONS
+*"      DB_ERROR
+*"----------------------------------------------------------------------
+
+  Data:
+    ls_record like line of it_records.
+
+"Обновлять по одной записи
+  Loop at it_records into ls_record.
+    Update ZPMP001_1
+      set DELETED = gc_true
+          DEL_DATE = sy-datum
+          DEL_TIME = sy-uzeit
+          DEL_NAME = sy-uname
+      where UNIQUE_INDEX = ls_record-unique_index.
+    If sy-subrc <> 0.
+    "Если хотя бы одна запись не обновилась, то отменить все изменения и выйти
+      Rollback work.
+      Raise DB_ERROR.
+    Else.
+      Add 1 to o_num_of_processed.
+    Endif.
+  Endloop.
+
+"Успешно обновлены все записи — подтвердить все изменения
+  Commit work and wait.
+
+Endfunction.
