@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '18',
+    minor type n length 2 value '19',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
@@ -914,28 +914,29 @@ Form alv_1_handle_data_changed
   changing
     ot_data type ty_t_data.
 
-  Data: lt_mod_cells type lvc_t_modi,
+  Field-symbols:
+    <ft_mod_rows> type ty_t_data,
+    <fs_mod_row> type ty_s_data.
+  Data: lt_mod_rows type ty_t_data,
+        ls_mod_row  type ty_s_data,
+        lv_index type ty_s_data-unique_index,
+        lt_mod_cells type lvc_t_modi,
         ls_mod_cell type lvc_s_modi,
         lv_value type lvc_value.
 
-  Move ir_data_changed->mt_mod_cells to lt_mod_cells.
-  Sort lt_mod_cells by row_id.
-
 "Подставить уникальный индекс
-  Loop at lt_mod_cells
-    into ls_mod_cell
-    where fieldname = gcs-data_table-key_unique_index.
-
-    Call method ir_data_changed->get_cell_value
-      exporting
-        i_row_id    = ls_mod_cell-row_id
-        i_fieldname = gcs-data_table-key_unique_index
-      importing
-        e_value     = lv_value.
-    "curr "Подставить уникальный индекс
+  Perform get_max_index changing lv_index.
+  Assign ir_data_changed->mp_mod_rows->* to <ft_mod_rows>.
+  Loop at <ft_mod_rows> assigning <fs_mod_row> where unique_index = 0.
+    Add 1 to lv_index.
+    <fs_mod_row>-unique_index = lv_index.
+    <fs_mod_row>-mandt = sy-mandt.
   Endloop.
 
 "Проверить правильность введённого местоположения
+  Move ir_data_changed->mt_mod_cells to lt_mod_cells.
+  Sort lt_mod_cells by row_id.
+
   Loop at lt_mod_cells
     into ls_mod_cell
     where fieldname = gcs-data_table-stort.
@@ -967,3 +968,19 @@ Form alv_1_handle_data_changed
   Endloop.
 
 Endform. "alv_1_handle_data_changed
+
+*&-------------------------------------------------------------------*
+*&   Выбрать из таблицы ZPMP001_1 максимальное значение индекса
+*&-------------------------------------------------------------------*
+Form get_max_index
+  changing
+    ov_max_index type ZPMP001_1-UNIQUE_INDEX.
+
+  Select max( UNIQUE_INDEX )
+    into ov_max_index
+    from ZPMP001_1.
+  If sy-subrc <> 0.
+    Message e000(su) with 'Ошибка в процедуре'
+                          'get_max_index'.
+  Endif.
+Endform. "get_max_index
