@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '21',
+    minor type n length 2 value '22',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
@@ -796,19 +796,19 @@ Form save_data
                           'Содержимое таблицы ZPMP001_1 не изменено.'.
     Exit.
   Endif.
-*  Call function 'ZPMP001_1_INSERT'
-*    exporting
-*      it_records = lt_ins_rows
-*    importing
-*      o_num_of_processed = ls_num_of-inserted
-*    exceptions
-*      db_error = 1
-*      nums_not_equal = 2.
-*  If sy-subrc <> 0.
-*    Message e000(su) with 'Ошибка при вызове ZPMP001_1_INSERT.'
-*                          'Содержимое таблицы ZPMP001_1 не изменено.'.
-*    Exit.
-*  Endif.
+  Call function 'ZPMP001_1_INSERT'
+    exporting
+      it_records = lt_ins_rows
+    importing
+      o_num_of_processed = ls_num_of-inserted
+    exceptions
+      db_error = 1
+      nums_not_equal = 2.
+  If sy-subrc <> 0.
+    Message e000(su) with 'Ошибка при вызове ZPMP001_1_INSERT.'
+                          'Содержимое таблицы ZPMP001_1 не изменено.'.
+    Exit.
+  Endif.
   Call function 'ZPMP001_1_MODIFY'
     exporting
       it_records = lt_mod_rows
@@ -824,7 +824,7 @@ Form save_data
 
   Message i000(su) with 'Удалено/добавлено/изменено строк:'
                         ls_num_of-deleted
-                        'N/A'"ls_num_of-inserted "нужно автоматически задавать unique_index
+                        ls_num_of-inserted
                         ls_num_of-modified.
   Move ot_data to ot_data_before. "Запомнить содержимое до изменений, 2 из 2
 Endform. "save_data
@@ -928,6 +928,7 @@ Form alv_1_handle_data_changed
     Add 1 to lv_index.
     <fs_mod_row>-unique_index = lv_index.
     <fs_mod_row>-mandt = sy-mandt.
+    <fs_mod_row>-stort = '13'.
   Endloop.
 
 "Проверить правильность введённого местоположения
@@ -964,6 +965,7 @@ Form alv_1_handle_data_changed
           i_row_id      = ls_mod_cell-row_id
           i_fieldname   = ls_mod_cell-fieldname
           i_value       = '13'.
+
     Endif.
 
   Endloop.
