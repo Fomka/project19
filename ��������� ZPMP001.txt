@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '20',
+    minor type n length 2 value '21',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "ћетод cl_icon->get_icon дл€ 'ICON_DELETE'
@@ -177,8 +177,7 @@ Class lcl_grid_event_handler implementation.
       When gs_alv-01-r_grid.
         "»спользовать экземпл€р класса, передаваемый через сообщение
         Perform alv_1_handle_data_changed
-          using er_data_changed
-          changing gt_data.
+          using er_data_changed.
       When others.
         Message i000(SU) with '—обытие data_changed' 'не обрабатываетс€ дл€ этого ALV-Grid''а'.
     Endcase.
@@ -911,16 +910,12 @@ Endform. "get_rows_with_mod_content
 *&-------------------------------------------------------------------*
 Form alv_1_handle_data_changed
   using
-    ir_data_changed type ref to cl_alv_changed_data_protocol
-  changing
-    ot_data type ty_t_data.
+    ir_data_changed type ref to cl_alv_changed_data_protocol.
 
   Field-symbols:
     <ft_mod_rows> type ty_t_data,
     <fs_mod_row> type ty_s_data.
-  Data: lt_mod_rows type ty_t_data,
-        ls_mod_row  type ty_s_data,
-        lv_index type ty_s_data-unique_index,
+  Data: lv_index type ty_s_data-unique_index,
         lt_mod_cells type lvc_t_modi,
         ls_mod_cell type lvc_s_modi,
         lv_stort type ty_s_data-stort,
