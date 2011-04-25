@@ -31,10 +31,11 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '19',
+    minor type n length 2 value '20',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
+    werks type T499S-WERKS value '1000', "номер завода, для проверки местоположений
     begin of permission_string,
       create type ZPM_USR-OPERATION value 'CREATE',
       change type ZPM_USR-OPERATION value 'CHANGE',
@@ -922,7 +923,8 @@ Form alv_1_handle_data_changed
         lv_index type ty_s_data-unique_index,
         lt_mod_cells type lvc_t_modi,
         ls_mod_cell type lvc_s_modi,
-        lv_value type lvc_value.
+        lv_stort type ty_s_data-stort,
+        lv_stort_is_ok type boolean.
 
 "Подставить уникальный индекс
   Perform get_max_index changing lv_index.
@@ -946,24 +948,28 @@ Form alv_1_handle_data_changed
         i_row_id    = ls_mod_cell-row_id
         i_fieldname = gcs-data_table-stort
       importing
-        e_value     = lv_value.
-    "TODO "Проверить правильность введённого местоположения
-    Call method ir_data_changed->add_protocol_entry
-      exporting
-        i_msgid = 'SU'
-        i_msgno = '000'
-        i_msgty = 'E'
-        i_msgv1 = 'Тест'
-        i_msgv2 = lv_value
-        i_msgv3 = 'Местоположение сброшено на 13'
-        i_fieldname = ls_mod_cell-fieldname
-        i_row_id = ls_mod_cell-row_id.
+        e_value     = lv_stort.
 
-    Call method ir_data_changed->modify_cell
-      exporting
-        i_row_id      = ls_mod_cell-row_id
-        i_fieldname   = ls_mod_cell-fieldname
-        i_value       = '13'.
+    Perform check_stort_is_ok using gcs-werks lv_stort changing lv_stort_is_ok.
+
+    If lv_stort_is_ok <> gc_true.
+      Call method ir_data_changed->add_protocol_entry
+        exporting
+          i_msgid = 'SU'
+          i_msgno = '000'
+          i_msgty = 'E'
+          i_msgv1 = 'Местоположение'
+          i_msgv2 = lv_stort
+          i_msgv3 = 'сброшено на 13'
+          i_fieldname = ls_mod_cell-fieldname
+          i_row_id = ls_mod_cell-row_id.
+
+      Call method ir_data_changed->modify_cell
+        exporting
+          i_row_id      = ls_mod_cell-row_id
+          i_fieldname   = ls_mod_cell-fieldname
+          i_value       = '13'.
+    Endif.
 
   Endloop.
 
@@ -984,3 +990,28 @@ Form get_max_index
                           'get_max_index'.
   Endif.
 Endform. "get_max_index
+
+*&-------------------------------------------------------------------*
+*&   Проверить существование местоположения
+*&-------------------------------------------------------------------*
+Form check_stort_is_ok
+  using
+    iv_werks type T499S-WERKS
+    iv_stort type T499S-STAND
+  changing
+    ov_is_ok type boolean.
+
+  Data:
+    lv_stort like iv_stort.
+
+  Select single STAND
+    into lv_stort
+    from T499S
+    where WERKS = iv_werks
+      and STAND = iv_stort.
+  If sy-subrc = 0.
+    ov_is_ok = gc_true.
+  Else.
+    ov_is_ok = gc_false.
+  Endif.
+Endform. "check_stort_is_ok
