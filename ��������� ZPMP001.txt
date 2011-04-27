@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '23',
+    minor type n length 2 value '24',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "ћетод cl_icon->get_icon дл€ 'ICON_DELETE'
@@ -61,7 +61,10 @@ Constants:
       end of new_screen,
     end of commands,
     begin of screens,
-      status type gui_status value '0001', "—татус по умолчанию
+      begin of status,
+        min type gui_status value '0001', "ћинимум функций
+        save type gui_status value '0002',"“о же + сохранение
+      end of status,
       begin of data_new, "Ёкран дл€ ввода новых записей
         number type i value 10,
         title type gui_title value '0010',
@@ -268,7 +271,7 @@ End-of-selection.
 
 *--- Ёкранные модули, начало -------------------------------------------------*
 Module init_screen output. "ќбщий дл€ всех экранов Ч установить GUI-статус
-  Set pf-status gcs-screens-status. "”становить минимальный набор функций
+  Set pf-status gcs-screens-status-min. "”становить минимальный набор функций
   "»нициировать экземпл€р ALV-Grid'а и заголовок, соответствующие текущему экрану
   Case sy-dynnr.
     When gcs-screens-data_new-number.
@@ -276,6 +279,7 @@ Module init_screen output. "ќбщий дл€ всех экранов Ч установить GUI-статус
       Message s000(SU) with 'ќтображение ALV-Grid''а на экране' sy-dynnr 'не сделано'.
 
     When gcs-screens-data_change-number.
+      Set pf-status gcs-screens-status-save. "+ —охранение
       Set titlebar gcs-screens-data_change-title.
       Perform alv_1_display using gs_permissions-all changing gt_data gs_alv-01.
       Call method gs_alv-01-r_grid->set_ready_for_input
