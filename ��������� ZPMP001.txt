@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '22',
+    minor type n length 2 value '23',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
@@ -599,6 +599,10 @@ Form alv_1_prepare
     "Показываемые столбцы сделать доступными для изменения содержимого
       ls_fcat-edit = gc_true.
     "Ещё нужно вызвать метод set_ready_for_input, что сделано в другом месте
+    Endif.
+
+    If ls_fcat-fieldname = gcs-data_table-stort.
+      ls_fcat-f4availabl = gc_true.
     Endif.
 
     Modify ot_fieldcat from ls_fcat.
