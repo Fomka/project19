@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '24',
+    minor type n length 2 value '25',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
@@ -275,18 +275,25 @@ Module init_screen output. "Общий для всех экранов — установить GUI-статус
   "Инициировать экземпляр ALV-Grid'а и заголовок, соответствующие текущему экрану
   Case sy-dynnr.
     When gcs-screens-data_new-number.
+      Set pf-status gcs-screens-status-save. "Минимум + сохранение
       Set titlebar gcs-screens-data_new-title.
-      Message s000(SU) with 'Отображение ALV-Grid''а на экране' sy-dynnr 'не сделано'.
+      Perform alv_1_display using gs_permissions-all changing gt_data gs_alv-01.
+      Call method gs_alv-01-r_grid->set_ready_for_input
+        exporting
+          i_ready_for_input = 1
+          .
+      "Считать, что в таблице пусто, т.е. можно только добавлять новые записи
+      Refresh gt_data_before. "Запомнить содержимое до изменений, 1 из 3
 
     When gcs-screens-data_change-number.
-      Set pf-status gcs-screens-status-save. "+ Сохранение
+      Set pf-status gcs-screens-status-save. "Минимум + сохранение
       Set titlebar gcs-screens-data_change-title.
       Perform alv_1_display using gs_permissions-all changing gt_data gs_alv-01.
       Call method gs_alv-01-r_grid->set_ready_for_input
         exporting
           i_ready_for_input = 1
           .
-      Move gt_data to gt_data_before. "Запомнить содержимое до изменений, 1 из 2
+      Move gt_data to gt_data_before. "Запомнить содержимое до изменений, 2 из 3
 
     When gcs-screens-data_view-number.
       Set titlebar gcs-screens-data_view-title.
@@ -381,6 +388,17 @@ Form dispatch_user_command
 
       Endcase.
 
+    When gcs-screens-data_new-number.
+      Case lv_ucomm.
+        When gcs-commands-new_screen-save.
+          Perform save_data
+            using gs_alv-01
+            changing gt_data_before
+                     gt_data.
+        When others. "Команда не найдена в списке обрабатываемых
+          Message i000(SU) with 'На экране' iv_dynnr 'не обрабатывается команда' lv_ucomm.
+      Endcase.
+
     When gcs-screens-data_change-number.
       Case lv_ucomm.
         When gcs-commands-change_screen-save.
@@ -453,10 +471,8 @@ Form exit_screen
 
   Case i_dynnr.
 
-    When gcs-screens-data_new-number.
-      "Нет объектов для удаления
-
-    When gcs-screens-data_change-number
+    When gcs-screens-data_new-number
+      or gcs-screens-data_change-number
       or gcs-screens-data_view-number.
       Try.
         Call method gs_alv-01-r_grid->free.
@@ -468,7 +484,7 @@ Form exit_screen
         Message i000(SU) with 'Исключительная ситуация при вызове методов Free:' lv_exc_text.
       Endtry.
       Free: gs_alv-01-r_grid, gs_alv-01-r_cont, gs_alv-01-r_handler,
-            gt_data, gs_alv-01-t_fcat, gs_alv-01-t_sort,
+            gt_data, gt_data_before, gs_alv-01-t_fcat, gs_alv-01-t_sort,
             gs_alv-01-s_layo, gs_alv-01-s_vari.
 
     When others.
@@ -762,10 +778,6 @@ Form save_data
       modified type i,
     end of ls_num_of.
 
-  If ot_data_before is initial.
-    Exit.
-  Endif.
-
 "Подтянуть текущее состояние ячеек ALV-грида в связанную с ним таблицу ot_data
   Call method is_alv-r_grid->check_changed_data
 *    importing
@@ -834,7 +846,7 @@ Form save_data
                         ls_num_of-deleted
                         ls_num_of-inserted
                         ls_num_of-modified.
-  Move ot_data to ot_data_before. "Запомнить содержимое до изменений, 2 из 2
+  Move ot_data to ot_data_before. "Запомнить содержимое до изменений, 3 из 3
 Endform. "save_data
 
 *&-------------------------------------------------------------------*
