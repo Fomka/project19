@@ -1,8 +1,8 @@
-FUNCTION ZPMP001_1_INSERT .
+FUNCTION ZPMP006_1_INSERT .
 *"----------------------------------------------------------------------
 *"*"Локальный интерфейс:
 *"  IMPORTING
-*"     REFERENCE(IT_RECORDS) TYPE  ZPMP001_1_TABLE_TYPE
+*"     REFERENCE(IT_RECORDS) TYPE  ZPMP006_1_TABLE_TYPE
 *"  EXPORTING
 *"     REFERENCE(O_NUM_OF_PROCESSED) TYPE  I
 *"  EXCEPTIONS
@@ -15,7 +15,7 @@ FUNCTION ZPMP001_1_INSERT .
 
 "Вставить все переданные записи за один раз
   Try.
-    Insert ZPMP001_1
+    Insert ZPMP006_1
       from table it_records.
   Catch CX_SY_OPEN_SQL_DB into lr_error.
   "Если произошла ошибка, то отменить все изменения и выйти

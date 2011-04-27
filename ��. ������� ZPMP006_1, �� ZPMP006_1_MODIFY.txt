@@ -1,8 +1,8 @@
-FUNCTION ZPMP001_1_MODIFY .
+FUNCTION ZPMP006_1_MODIFY .
 *"----------------------------------------------------------------------
 *"*"Локальный интерфейс:
 *"  IMPORTING
-*"     REFERENCE(IT_RECORDS) TYPE  ZPMP001_1_TABLE_TYPE
+*"     REFERENCE(IT_RECORDS) TYPE  ZPMP006_1_TABLE_TYPE
 *"  EXPORTING
 *"     REFERENCE(O_NUM_OF_PROCESSED) TYPE  I
 *"  EXCEPTIONS
@@ -10,7 +10,7 @@ FUNCTION ZPMP001_1_MODIFY .
 *"----------------------------------------------------------------------
 
 "Обновить все записи за один раз
-  Update ZPMP001_1
+  Update ZPMP006_1
     from table it_records.
   If sy-subrc <> 0.
   "Если хотя бы одна запись не обновилась, то отменить все изменения и выйти
