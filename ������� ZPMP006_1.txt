@@ -1,0 +1,24 @@
+Ключевые поля
+MANDT	MANDT	CLNT	3	0	Мандант
+UNIQUE_INDEX	ZPMP001_1_INDEX	INT4	10	0	Уникальный номер единицы ПО
+
+Неключевые поля
+STORT	STORT	CHAR	10	0	Местоположение основного средства
+NAME	ZPMP006_1_NAME	CHAR	48	0	Наименование программного обеспечения
+MANUFACT_PLACE	ZPMP006_1_MANUFACTURER_PLACE	CHAR	48	0	Разработчик/производитель, местоположение
+MANUFACT_NAME	ZPMP006_1_MANUFACTURER_NAME	CHAR	48	0	Разработчик/производитель, название организации
+PROJECT	ZPMP006_1_PROJECT	CHAR	5	0	Номер проекта
+DATE_START	ZPMP006_1_DATE_START	CHAR	7	0	Дата ввода в эксплуатацию
+TYPE	ZPMP006_1_TYPE	CHAR	48	0	Тип/модель
+VERSION_ORIGINAL	ZPMP006_1_VERSION_ORIG	CHAR	48	0	Версия оригинала
+VERSION_MOD	ZPMP006_1_VERSION_MOD	CHAR	48	0	Версия изменённого ПО
+DEV_ENVIRONMENT	ZPMP006_1_DEV_ENVIRONMENT	CHAR	48	0	Среда разработки
+MOD_CAUSE	ZPMP006_1_MOD_CAUSE	CHAR	48	0	Причина модернизации ПО
+MOD_WORKER	ZPMP006_1_MOD_WORKER	CHAR	48	0	Исполнитель работ
+MOD_DATE	ZPMP006_1_MOD_DATE	CHAR	48	0	Дата модернизации ПО
+NUM_OF_COPIES	ZPMP006_1_NUMBER_OF_COPIES	INT4	10	0	Количество копий
+COMMENTARY	ZPMP006_1_COMMENT	CHAR	80	0	Примечание
+DELETED	ZPMP006_1_DELETED	CHAR	1	0	Запись удалена
+DEL_DATE	ZPMP006_1_DEL_DATE	DATS	8	0	Дата удаления
+DEL_TIME	ZPMP006_1_DEL_TIME	TIMS	6	0	Время удаления
+DEL_NAME	XUBNAME	CHAR	12	0	Имя пользователя в основной записи пользователя
