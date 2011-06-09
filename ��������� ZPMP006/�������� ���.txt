@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '27',
+    minor type n length 2 value '28',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
@@ -155,7 +155,8 @@ Types:
 
 Data:
 "Ограничения на поле множественного выбора SO1_STRT "Местоположение"
-  gt_stort_restrictions type ty_t_strings,
+  gt_change_stort_restrictions type ty_t_strings, "для операции CHANGE
+  gt_create_stort_restrictions type ty_t_strings, "для операции CREATE
   "gv_restr – эта глобальная переменная определена как Selection-screen comment
 
   gt_data type ty_t_data,
@@ -257,8 +258,13 @@ Initialization.
                           'недостаточно полномочий на работу с программой'
                           sy-repid.
   Endif.
+  If gs_permissions-create = gc_true.
+    "curr Ограничения на местоположение для операции CREATE — gt_create_stort_restrictions
+  Endif.
   If gs_permissions-change = gc_true.
-    Perform get_stort_restrictions changing gt_stort_restrictions.
+    Perform get_op_restrictions
+      using sy-repid sy-uname gcs-permission_string-change 'STORT'
+      changing gt_change_stort_restrictions.
   Endif.
 
 *--- Перед отображением экрана выбора
@@ -273,7 +279,7 @@ At selection-screen output.
 "Определить, как показывать параметр "Местоположение"
   If gs_permissions-all = gc_true or
      p_tog_ch <> gc_true or
-    ( p_tog_ch = gc_true and gt_stort_restrictions is initial ).
+    ( p_tog_ch = gc_true and gt_change_stort_restrictions is initial ).
   "Ограничения на местоположение не действуют, так как
   " либо 1) есть полномочия на все операции (ALL)
   " либо 2) режим изменения выключен,
@@ -282,7 +288,7 @@ At selection-screen output.
   Else.
   "Действуют ограничения на местоположение
     Message s000(su) with 'Действуют ограничения на местоположение'.
-    Perform show_stort_with_restrictions using gt_stort_restrictions.
+    Perform show_stort_with_restrictions using gt_change_stort_restrictions.
   Endif.
 
 *--- Реакция на нажатие кнопок на экране выбора ------------------------------*
@@ -531,7 +537,14 @@ Form exit_screen
 Endform. "exit_screen
 
 *&-------------------------------------------------------------------*
-*&  Есть ли в таблице ZPM_USR полномочия на указанную операцию?
+*&   Есть ли в таблице ZPM_USR полномочия на указанную операцию? Поиск идёт по
+*& первичному ключу (поля PROGNAME, UNAME, OPERATION). Ищутся полномочия на
+*& указанную операцию i_operation или на все операции (i_all).
+*&
+*&  -> i_program_name = соответствует ключевому полю PROGNAME в таблице ZPM_USR
+*&  -> i_usr_name = -//- полю UNAME -//-
+*&  -> i_operation = -//- полю OPERATION -//-
+*&  -> i_all = значение, соответствующее полномочиям на все операции
 *&-------------------------------------------------------------------*
 Form check_permission
   using
@@ -662,25 +675,55 @@ Form show_stort_full.
 Endform. "show_stort_full
 
 *&-------------------------------------------------------------------*
-*&   Выбрать из таблицы ZPM_USR ограничения на поле множественного выбора
-*& SO1_STRT "Местоположение" для текущего пользователя и программы. Добавить
-*& выбранные значения в выходную таблицу ot_values.
+*&   Выбрать из таблицы ZPM_USR ограничения на операцию i_operation, которую
+*& пользователь i_user_name может производить в программе i_program_name над
+*& объектами типа i_restriction_type. Добавить выбранные значения в выходную
+*& таблицу ot_values.
 *&
-*& <-> ot_values = таблица с выбранными ограничениями
+*&  -> i_program_name = соответствует ключевому полю PROGNAME в таблице ZPM_USR
+*&  -> i_usr_name = -//- полю UNAME -//-
+*&  -> i_operation = -//- полю OPERATION -//-
+*&  -> i_restriction_type = тип объектов, например 'STORT', смотри документацию
+*&     к элементу данных ZPM_AUTH_OP_RESTRICTIONS
+*& <-> ot_restrictions = таблица с выбранными ограничениями
 *&-------------------------------------------------------------------*
-Form get_stort_restrictions
-  changing ot_values type ty_t_strings.
+Form get_op_restrictions
+  using
+    i_program_name type progname
+    i_user_name  type xubname
+    i_operation type zpm_auth_operation
+    i_restriction_type type zpm_auth_op_restrictions
+  changing ot_restrictions type ty_t_strings.
 
   Data:
-    ls_value type ty_s_string.
+    lv_SQL_string type string,
+    lv_restrictions type string,
+    lt_split_values type standard table of string,
+    lv_split_value type string,
+    ls_restriction type ty_s_string.
 
-"TODO выбирать данные из ZPM_USR
-  ls_value-string = '13'.
-  Append ls_value to ot_values.
+  Refresh ot_restrictions.
 
-  ls_value-string = '14'.
-  Append ls_value to ot_values.
-Endform. "get_stort_restrictions
+  Concatenate i_restriction_type '%' into lv_SQL_string.
+
+  Select single restrictions
+    from ZPM_USR
+    into lv_restrictions
+    where PROGNAME = i_program_name
+      and UNAME = i_user_name
+      and OPERATION = i_operation
+      and RESTRICTIONS like lv_SQL_string.
+  If sy-subrc <> 0.
+    Exit.
+  Endif.
+
+"В переменную lv_restrictions выбраны ограничения, формат = 'STORT;13;38;85'
+  Split lv_restrictions at ';' into table lt_split_values.
+  Loop at lt_split_values from 2 into lv_split_value.
+    ls_restriction-string = lv_split_value.
+    Append ls_restriction to ot_restrictions.
+  Endloop.
+Endform. "get_op_restrictions
 
 *&-------------------------------------------------------------------*
 *&   Заполнить внутреннюю таблицу данными из базы данных

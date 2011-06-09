@@ -25,7 +25,7 @@
 Полномочия на Z-программы в модуле PM
 
 --- Свойства
-Последнее изменение    KOTLOV_PV    22.12.2010
+Последнее изменение    GUDKOV_TV    09.06.2011
 Пакет                  ZPM0                           класс разработки модуля ПМ
 Язык оригинала         RU Русский
 
@@ -42,6 +42,7 @@ OPERATION	ZPM_AUTH_OPERATION	CHAR	6	0	Операция в модуле PM, подлежащая проверке 
 UNAME	XUBNAME	CHAR	12	0	Имя пользователя в основной записи пользователя
 
 Неключевые поля
+RESTRICTIONS	ZPM_AUTH_OP_RESTRICTIONS	CHAR	48	0	Ограничения на операцию в модуле PM
 CHANGE_DATE		DATS	8	0	Дата изменения
 CHANGE_NAME	XUBNAME	CHAR	12	0	Имя пользователя в основной записи пользователя
 
@@ -50,6 +51,7 @@ MANDT	MANDT	CLNT	                              	                                
 PROGNAME	PROGNAME	CHAR	TRDIR	Справка по значениям реализована через проверочную табл.		PROGNAME
 OPERATION	ZPM_AUTH_OPERATION	CHAR	                              	Справка по значениям ввода через постоянные значения		ZPM_AUTH_OPERATIONS
 UNAME	XUBNAME	CHAR	USR02	Справка по значениям реализована через проверочную табл.		XUBNAME
+RESTRICTIONS	ZPM_AUTH_OP_RESTRICTIONS	CHAR	                              	                                                            
 CHANGE_DATE		DATS	                              	Справка по значениям ввода на базе типа данных
 CHANGE_NAME	XUBNAME	CHAR	                              	                                                            		XUBNAME
 
@@ -58,5 +60,6 @@ MANDT	MANDT	CLNT	                              	                              	М
 PROGNAME	PROGNAME	CHAR	                              	                              	Имя ABAP-программы
 OPERATION	ZPM_AUTH_OPERATION	CHAR	                              	                              	Операция в модуле PM, подлежащая проверке на полномочия
 UNAME	XUBNAME	CHAR	                              	                              	Имя пользователя в основной записи пользователя
+RESTRICTIONS	ZPM_AUTH_OP_RESTRICTIONS	CHAR	                              	                              	Ограничения на операцию в модуле PM
 CHANGE_DATE		DATS	                              	                              	Дата изменения
 CHANGE_NAME	XUBNAME	CHAR	                              	                              	Имя пользователя в основной записи пользователя
