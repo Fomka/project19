@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '26',
+    minor type n length 2 value '27',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
@@ -49,8 +49,7 @@ Constants:
       version type sy-ucomm value 'VERSION',
       begin of sel_screen, "Для экрана выбора
         goto_new type sy-ucomm value 'GOTO_NEW', "Изменил? Ищи user-command goto_new
-        goto_change type sy-ucomm value 'GOTO_CHANGE', "Изменил? Ищи user-command goto_change
-        goto_view type sy-ucomm value 'GOTO_VIEW', "Изменил? Ищи user-command goto_view
+        goto_search type sy-ucomm value 'GOTO_SEARCH', "Изменил? Ищи user-command goto_search
         online type sy-ucomm value 'ONLI',
       end of sel_screen,
       begin of change_screen,
@@ -81,6 +80,8 @@ Constants:
         number type i value 1000,
         group_create type screen-group1 value 'CRE',"Изменил? Ищи modif id CRE
         group_change type screen-group1 value 'CHA',"Изменил? Ищи modif id CHA
+        group_stort_restriction_1 type screen-group1 value 'ID1',"Изменил? Ищи modif id ID1
+        group_stort_restriction_2 type screen-group1 value 'ID2',"Изменил? Ищи modif id ID2
       end of sel_screen,
     end of screens,
     begin of alv, "общее для гридов (ALV-Grid)
@@ -133,6 +134,10 @@ Class lcl_grid_event_handler definition final.
 Endclass.
 
 Types:
+  begin of ty_s_string,
+    string type string,
+  end of ty_s_string,
+  ty_t_strings type standard table of ty_s_string,
   ty_t_data type ZPMP006_1_TABLE_TYPE,
   ty_s_data type line of ty_t_data,
   begin of ty_s_alv,
@@ -149,6 +154,10 @@ Types:
   end of ty_s_alv.
 
 Data:
+"Ограничения на поле множественного выбора SO1_STRT "Местоположение"
+  gt_stort_restrictions type ty_t_strings,
+  "gv_restr – эта глобальная переменная определена как Selection-screen comment
+
   gt_data type ty_t_data,
   gt_data_before type ty_t_data, "Состояние gt_data при переходе на экран изменений
   gv_row_count type i,
@@ -191,31 +200,38 @@ Endclass.
 Tables:
   ZPMP006_1.
 
-Selection-screen pushbutton /1(40) text-001 user-command goto_new modif id CRE. "Добавить
-Selection-screen begin of block b10 with frame title text-010.
+Selection-screen begin of block b01 with frame.
+  Selection-screen pushbutton /1(40) text-001 user-command goto_new modif id CRE. "Добавить
+Selection-screen end of block b01.
+Selection-screen begin of block b02 with frame title text-004.
+  Selection-screen begin of block b10 with frame title text-010.
+    Selection-screen comment 1(40) gv_restr modif id ID2.
+    Select-options:
+      so1_strt for ZPMP006_1-STORT modif id ID1,
+      so1_name for ZPMP006_1-NAME,
+      so1_man1 for ZPMP006_1-MANUFACT_PLACE,
+      so1_man2 for ZPMP006_1-MANUFACT_NAME,
+      so1_proj for ZPMP006_1-PROJECT,
+      so1_date for ZPMP006_1-DATE_START.
+  Selection-screen end of block b10.
+  Selection-screen begin of block b20 with frame title text-020.
+    Select-options:
+      so2_type for ZPMP006_1-TYPE,
+      so2_vero for ZPMP006_1-VERSION_ORIGINAL,
+      so2_verm for ZPMP006_1-VERSION_MOD,
+      so2_denv for ZPMP006_1-DEV_ENVIRONMENT,
+      so2_mcau for ZPMP006_1-MOD_CAUSE,
+      so2_mwor for ZPMP006_1-MOD_WORKER,
+      so2_mdat for ZPMP006_1-MOD_DATE,
+      so2_numc for ZPMP006_1-NUM_OF_COPIES default 1.
+  Selection-screen end of block b20.
   Select-options:
-    so1_strt for ZPMP006_1-STORT,
-    so1_name for ZPMP006_1-NAME,
-    so1_man1 for ZPMP006_1-MANUFACT_PLACE,
-    so1_man2 for ZPMP006_1-MANUFACT_NAME,
-    so1_proj for ZPMP006_1-PROJECT,
-    so1_date for ZPMP006_1-DATE_START.
-Selection-screen end of block b10.
-Selection-screen begin of block b20 with frame title text-020.
-  Select-options:
-    so2_type for ZPMP006_1-TYPE,
-    so2_vero for ZPMP006_1-VERSION_ORIGINAL,
-    so2_verm for ZPMP006_1-VERSION_MOD,
-    so2_denv for ZPMP006_1-DEV_ENVIRONMENT,
-    so2_mcau for ZPMP006_1-MOD_CAUSE,
-    so2_mwor for ZPMP006_1-MOD_WORKER,
-    so2_mdat for ZPMP006_1-MOD_DATE,
-    so2_numc for ZPMP006_1-NUM_OF_COPIES default 1.
-Selection-screen end of block b20.
-Select-options:
-  so3_comm for ZPMP006_1-COMMENTARY.
-Selection-screen pushbutton /1(40) text-002 user-command goto_change modif id CHA. "Изменить
-Selection-screen pushbutton /1(40) text-003 user-command goto_view. "Просмотреть
+    so3_comm for ZPMP006_1-COMMENTARY.
+  Parameters:
+  "toggle change = включить/выключить режим изменения
+    p_tog_ch as checkbox modif id CHA user-command selscr_toggle_change.
+  Selection-screen pushbutton /1(40) text-004 user-command goto_search. "Искать
+Selection-screen end of block b02.
 
 Initialization.
   gs_permissions-view = gc_true. "Нет проверки полномочий на просмотр — смотрят все
@@ -241,6 +257,9 @@ Initialization.
                           'недостаточно полномочий на работу с программой'
                           sy-repid.
   Endif.
+  If gs_permissions-change = gc_true.
+    Perform get_stort_restrictions changing gt_stort_restrictions.
+  Endif.
 
 *--- Перед отображением экрана выбора
 At selection-screen output.
@@ -249,6 +268,21 @@ At selection-screen output.
   Endif.
   If gs_permissions-change <> gc_true.
     Perform hide_screen_element_group using gcs-screens-sel_screen-group_change.
+  Endif.
+
+"Определить, как показывать параметр "Местоположение"
+  If gs_permissions-all = gc_true or
+     p_tog_ch <> gc_true or
+    ( p_tog_ch = gc_true and gt_stort_restrictions is initial ).
+  "Ограничения на местоположение не действуют, так как
+  " либо 1) есть полномочия на все операции (ALL)
+  " либо 2) режим изменения выключен,
+  " либо 3) включён режим изменения и ограничений на местоположение нет
+    Perform show_stort_full.
+  Else.
+  "Действуют ограничения на местоположение
+    Message s000(su) with 'Действуют ограничения на местоположение'.
+    Perform show_stort_with_restrictions using gt_stort_restrictions.
   Endif.
 
 *--- Реакция на нажатие кнопок на экране выбора ------------------------------*
@@ -360,7 +394,7 @@ Form dispatch_user_command
         When gcs-commands-sel_screen-goto_new.
           Call screen gcs-screens-data_new-number.
 
-        When gcs-commands-sel_screen-goto_change.
+        When gcs-commands-sel_screen-goto_search.
           Perform get_data changing gt_data gv_row_count.
           If gv_row_count = 0. "Обработать результат выборки из БД, вхождение 2 из 3
             Message i000(SU) with 'Не найдено ни одной записи'.
@@ -369,20 +403,17 @@ Form dispatch_user_command
             Message s000(SU) with 'Записей найдено:' gv_row_count 'шт.'.
           Endif.
 
-          Call screen gcs-screens-data_change-number.
-
-        When gcs-commands-sel_screen-goto_view.
-          Perform get_data changing gt_data gv_row_count.
-          If gv_row_count = 0. "Обработать результат выборки из БД, вхождение 2 из 3
-            Message i000(SU) with 'Не найдено ни одной записи'.
-            Exit.
+          If gc_true = p_tog_ch.
+            Call screen gcs-screens-data_change-number.
           Else.
-            Message s000(SU) with 'Записей найдено:' gv_row_count 'шт.'.
+            Call screen gcs-screens-data_view-number.
           Endif.
-          Call screen gcs-screens-data_view-number.
 
         When gcs-commands-sel_screen-online. "Нажатие "Выполнить" (F8) на экране выбора
           "ничего не делать, обработка находится в событии Start-of-selection
+
+        When 'SELSCR_TOGGLE_CHANGE'.
+          "обработка находится в событии At selection-screen output
 
         When others. "Команда не найдена в списке обрабатываемых
           "Ничего не делать = стандартные команды на экране выбора и так обрабатываются
@@ -543,6 +574,113 @@ Form hide_screen_element_group
     Modify screen.
   Endloop.
 Endform. "hide_screen_element_group
+
+*&-------------------------------------------------------------------*
+*&   Показать на текущем экране элементы управления, принадлежащие
+*& указанной группе.
+*&
+*&  -> iv_group_name = название группы, элементы которой будут показаны
+*&-------------------------------------------------------------------*
+Form show_screen_element_group
+  using iv_group_name type screen-group1.
+
+  Loop at screen.
+    If screen-group1 = iv_group_name.
+      screen-active = 1.
+    Endif.
+    Modify screen.
+  Endloop.
+Endform. "show_screen_element_group
+
+*&-------------------------------------------------------------------*
+*&   Показать поле "Местоположение" с ограничениями:
+*& 1) скрыть поле множественного выбора SO1_STRT "Местоположение",
+*& 2) задать его значения из ограничений,
+*& 3) Показать ограничения через Selection-screen comment.
+*&   Глобальные объекты: so1_strt, gv_restr
+*&
+*&  -> it_restrictions = таблица со значениями, которые нужно задать
+*&-------------------------------------------------------------------*
+Form show_stort_with_restrictions
+  using it_restrictions type ty_t_strings.
+
+  Data:
+    ls_so1_strt like line of so1_strt,
+    ls_restriction type ty_s_string.
+
+"Скрыть поле множественного выбора SO1_STRT "Местоположение"
+  Perform hide_screen_element_group
+    using gcs-screens-sel_screen-group_stort_restriction_1.
+
+"Задать значения поля из ограничений
+  Refresh so1_strt[].
+  Clear so1_strt.
+  Clear gv_restr.
+
+  ls_so1_strt-sign = 'I'.
+  ls_so1_strt-option = 'EQ'.
+
+  Loop at it_restrictions into ls_restriction.
+    ls_so1_strt-low = ls_restriction-string.
+    Append ls_so1_strt to so1_strt[].
+    Concatenate gv_restr ls_restriction-string
+      into gv_restr
+      separated by space.
+  Endloop.
+
+"Показать ограничения через Selection-screen comment
+  Concatenate text-005 gv_restr into gv_restr.
+  Perform show_screen_element_group
+    using gcs-screens-sel_screen-group_stort_restriction_2.
+
+Endform. "show_stort_with_restrictions
+
+*&-------------------------------------------------------------------*
+*&   Показать поле "Местоположение" без ограничений:
+*& 1) показать поле множественного выбора SO1_STRT "Местоположение",
+*& 2) очистить поле SO1_STRT,
+*& 3) Скрыть Selection-screen comment.
+*&   Глобальные объекты: so1_strt, gv_restr
+*&
+*&  -> it_restrictions = таблица со значениями, которые нужно задать
+*&-------------------------------------------------------------------*
+Form show_stort_full.
+
+"Показать поле множественного выбора SO1_STRT "Местоположение"
+  Perform show_screen_element_group
+    using gcs-screens-sel_screen-group_stort_restriction_1.
+
+"Очистить поле SO1_STRT
+  Refresh so1_strt[].
+  Clear so1_strt.
+
+"Скрыть Selection-screen comment
+  Clear gv_restr.
+  Perform hide_screen_element_group
+    using gcs-screens-sel_screen-group_stort_restriction_2.
+
+Endform. "show_stort_full
+
+*&-------------------------------------------------------------------*
+*&   Выбрать из таблицы ZPM_USR ограничения на поле множественного выбора
+*& SO1_STRT "Местоположение" для текущего пользователя и программы. Добавить
+*& выбранные значения в выходную таблицу ot_values.
+*&
+*& <-> ot_values = таблица с выбранными ограничениями
+*&-------------------------------------------------------------------*
+Form get_stort_restrictions
+  changing ot_values type ty_t_strings.
+
+  Data:
+    ls_value type ty_s_string.
+
+"TODO выбирать данные из ZPM_USR
+  ls_value-string = '13'.
+  Append ls_value to ot_values.
+
+  ls_value-string = '14'.
+  Append ls_value to ot_values.
+Endform. "get_stort_restrictions
 
 *&-------------------------------------------------------------------*
 *&   Заполнить внутреннюю таблицу данными из базы данных
