@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '30',
+    minor type n length 2 value '31',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
@@ -163,10 +163,11 @@ Types:
   end of ty_s_alv.
 
 Data:
-"Ограничения на поле множественного выбора SO1_STRT "Местоположение"
-  gt_change_stort_restrictions type ty_t_strings, "для операции CHANGE
+"Ограничения на поле ZPMP006_1-STORT "Местоположение"
   gt_create_stort_restrictions type ty_t_strings, "для операции CREATE
-  "gv_restr – эта глобальная переменная определена как Selection-screen comment
+  gt_change_stort_restrictions type ty_t_strings, "для операции CHANGE
+  "gv_r_cre – эта глобальная переменная определена как Selection-screen comment
+  "gv_r_cha – эта глобальная переменная определена как Selection-screen comment
 
   gt_data type ty_t_data,
   gt_data_before type ty_t_data, "Состояние gt_data при переходе на экран изменений
@@ -210,12 +211,16 @@ Endclass.
 Tables:
   ZPMP006_1.
 
+"Блок для CREATE (операция "Добавить")
 Selection-screen begin of block b01 with frame.
   Selection-screen pushbutton /1(40) text-001 user-command goto_new modif id CRE. "Добавить
+  Selection-screen comment 42(40) gv_r_cre modif id CRE.
 Selection-screen end of block b01.
+
+"Блок для CHANGE/VIEW (операции "Изменить", "Просмотреть")
 Selection-screen begin of block b02 with frame title text-004.
   Selection-screen begin of block b10 with frame title text-010.
-    Selection-screen comment 1(40) gv_restr modif id ID2.
+    Selection-screen comment 1(40) gv_r_cha modif id ID2.
     Select-options:
       so1_strt for ZPMP006_1-STORT modif id ID1,
       so1_name for ZPMP006_1-EQUIPMENT_NAME,
@@ -240,7 +245,13 @@ Selection-screen begin of block b02 with frame title text-004.
     so3_comm for ZPMP006_1-COMMENTARY.
   Parameters:
   "toggle change = включить/выключить режим изменения
-    p_tog_ch as checkbox modif id CHA user-command selscr_toggle_change.
+    p_tog_ch as checkbox
+      modif id CHA "показывается, если есть полномочия на операцию CHANGE
+      user-command selscr_toggle_change "команда, вызываемая по переключению
+      default space "изначально режим изменения выключен, чтобы сообщение
+        "о наличии ограничений для операции CREATE в статусной строке не
+        "перебивалось аналогичным сообщением для операции CHANGE
+    .
   Selection-screen pushbutton /1(40) text-004 user-command goto_search. "Искать
 Selection-screen end of block b02.
 
@@ -268,10 +279,32 @@ Initialization.
                           'недостаточно полномочий на работу с программой'
                           sy-repid.
   Endif.
+
+"Показать ограничения или их отсутствие для операции CREATE
   If gs_permissions-create = gc_true.
-    "curr Ограничения на местоположение для операции CREATE — gt_create_stort_restrictions
+  "Есть полномочия на операцию CREATE
+    If gs_permissions-all <> gc_true.
+    "Нет полномочий на всё, выбрать ограничения для операции CREATE
+      Perform get_op_restrictions
+        using sy-repid sy-uname gcs-permission_string-create 'STORT'
+        changing gt_create_stort_restrictions.
+    Endif.
+    If gt_create_stort_restrictions is initial.
+    "Нет ограничений на местоположение для операции CREATE
+      Perform show_create_stort_full.
+    Else.
+    "Показать один раз сообщение об ограничениях в статусной строке
+      Message s000(su) with 'Действуют ограничения на местоположение'
+                            'для операции "Добавить"'.
+    "Задать один раз (не меняется далее) поясняющий текст (блок для CREATE)
+      Perform show_create_stort_restricted
+        using gt_create_stort_restrictions.
+    Endif.
   Endif.
-  If gs_permissions-change = gc_true.
+"Показать ограничения или их отсутствие для операции CHANGE
+  If gs_permissions-change = gc_true and gs_permissions-all <> gc_true.
+  "Есть полномочия на операцию CHANGE и нет полномочий на всё
+  "Выбрать ограничения для операции CHANGE
     Perform get_op_restrictions
       using sy-repid sy-uname gcs-permission_string-change 'STORT'
       changing gt_change_stort_restrictions.
@@ -286,19 +319,20 @@ At selection-screen output.
     Perform hide_screen_element_group using gcs-screens-sel_screen-group_change.
   Endif.
 
-"Определить, как показывать параметр "Местоположение"
+"Определить, как показывать параметр "Местоположение" (блок для CHANGE/VIEW)
   If gs_permissions-all = gc_true or
      p_tog_ch <> gc_true or
     ( p_tog_ch = gc_true and gt_change_stort_restrictions is initial ).
   "Ограничения на местоположение не действуют, так как
-  " либо 1) есть полномочия на все операции (ALL)
+  " либо 1) есть полномочия на всё (ALL)
   " либо 2) режим изменения выключен,
   " либо 3) включён режим изменения и ограничений на местоположение нет
-    Perform show_stort_full.
+    Perform show_change_stort_full.
   Else.
   "Действуют ограничения на местоположение
-    Message s000(su) with 'Действуют ограничения на местоположение'.
-    Perform show_stort_with_restrictions using gt_change_stort_restrictions.
+    Message s000(su) with 'Действуют ограничения на местоположение'
+                          'для операции "Изменить"'.
+    Perform show_change_stort_restricted using gt_change_stort_restrictions.
   Endif.
 
 *--- Реакция на нажатие кнопок на экране выбора ------------------------------*
@@ -551,12 +585,12 @@ Endform. "exit_screen
 *&-------------------------------------------------------------------*
 *&   Есть ли в таблице ZPM_USR полномочия на указанную операцию? Поиск идёт по
 *& первичному ключу (поля PROGNAME, UNAME, OPERATION). Ищутся полномочия на
-*& указанную операцию i_operation или на все операции (i_all).
+*& указанную операцию i_operation или на всё (i_all).
 *&
 *&  -> i_program_name = соответствует ключевому полю PROGNAME в таблице ZPM_USR
 *&  -> i_usr_name = -//- полю UNAME -//-
 *&  -> i_operation = -//- полю OPERATION -//-
-*&  -> i_all = значение, соответствующее полномочиям на все операции
+*&  -> i_all = значение, соответствующее полномочиям на всё
 *&-------------------------------------------------------------------*
 Form check_permission
   using
@@ -618,15 +652,15 @@ Form show_screen_element_group
 Endform. "show_screen_element_group
 
 *&-------------------------------------------------------------------*
-*&   Показать поле "Местоположение" с ограничениями:
+*&   Показать (блок для CHANGE/VIEW) поле "Местоположение" с ограничениями:
 *& 1) скрыть поле множественного выбора SO1_STRT "Местоположение",
 *& 2) задать его значения из ограничений,
-*& 3) Показать ограничения через Selection-screen comment.
-*&   Глобальные объекты: so1_strt, gv_restr
+*& 3) показать ограничения через Selection-screen comment gv_r_cha.
+*&   Глобальные объекты: so1_strt, gv_r_cha
 *&
 *&  -> it_restrictions = таблица со значениями, которые нужно задать
 *&-------------------------------------------------------------------*
-Form show_stort_with_restrictions
+Form show_change_stort_restricted
   using it_restrictions type ty_t_strings.
 
   Data:
@@ -640,7 +674,7 @@ Form show_stort_with_restrictions
 "Задать значения поля из ограничений
   Refresh so1_strt[].
   Clear so1_strt.
-  Clear gv_restr.
+  Clear gv_r_cha.
 
   ls_so1_strt-sign = 'I'.
   ls_so1_strt-option = 'EQ'.
@@ -648,28 +682,28 @@ Form show_stort_with_restrictions
   Loop at it_restrictions into ls_restriction.
     ls_so1_strt-low = ls_restriction-string.
     Append ls_so1_strt to so1_strt[].
-    Concatenate gv_restr ls_restriction-string
-      into gv_restr
+    Concatenate gv_r_cha ls_restriction-string
+      into gv_r_cha
       separated by space.
   Endloop.
 
-"Показать ограничения через Selection-screen comment
-  Concatenate text-005 gv_restr into gv_restr.
+"Показать ограничения через Selection-screen comment gv_r_cha
+  Concatenate text-005 gv_r_cha into gv_r_cha.
   Perform show_screen_element_group
     using gcs-screens-sel_screen-group_stort_restriction_2.
 
-Endform. "show_stort_with_restrictions
+Endform. "show_change_stort_restricted
 
 *&-------------------------------------------------------------------*
-*&   Показать поле "Местоположение" без ограничений:
+*&   Показать (блок для CHANGE/VIEW) поле "Местоположение" без ограничений:
 *& 1) показать поле множественного выбора SO1_STRT "Местоположение",
 *& 2) очистить поле SO1_STRT,
-*& 3) Скрыть Selection-screen comment.
-*&   Глобальные объекты: so1_strt, gv_restr
+*& 3) скрыть Selection-screen comment gv_r_cha.
+*&   Глобальные объекты: so1_strt, gv_r_cha
 *&
 *&  -> it_restrictions = таблица со значениями, которые нужно задать
 *&-------------------------------------------------------------------*
-Form show_stort_full.
+Form show_change_stort_full.
 
 "Показать поле множественного выбора SO1_STRT "Местоположение"
   Perform show_screen_element_group
@@ -679,12 +713,42 @@ Form show_stort_full.
   Refresh so1_strt[].
   Clear so1_strt.
 
-"Скрыть Selection-screen comment
-  Clear gv_restr.
+"Скрыть Selection-screen comment gv_r_cha
+  Clear gv_r_cha.
   Perform hide_screen_element_group
     using gcs-screens-sel_screen-group_stort_restriction_2.
 
-Endform. "show_stort_full
+Endform. "show_change_stort_full
+
+*&-------------------------------------------------------------------*
+*&   Показать (блок для CREATE) наличие ограничений на "Местоположение":
+*& 1) задать текст для Selection-screen comment gv_r_cre.
+*&   Глобальные объекты: gv_r_cre
+*&-------------------------------------------------------------------*
+Form show_create_stort_restricted
+  using it_restrictions type ty_t_strings.
+
+  Data: ls_restriction type ty_s_string.
+"Задать текст для Selection-screen comment gv_r_cre
+  gv_r_cre = text-005.
+  Loop at it_restrictions into ls_restriction.
+    Concatenate gv_r_cre ls_restriction-string
+      into gv_r_cre
+      separated by space.
+  Endloop.
+
+Endform. "show_create_stort_restricted
+
+*&-------------------------------------------------------------------*
+*&   Показать (блок для CREATE) отсутствие ограничений на "Местоположение":
+*& 1) задать текст для Selection-screen comment gv_r_cre.
+*&   Глобальные объекты: gv_r_cre
+*&-------------------------------------------------------------------*
+Form show_create_stort_full.
+"Задать текст для Selection-screen comment gv_r_cre
+  Concatenate text-005 'нет' into gv_r_cre separated by space.
+
+Endform. "show_create_stort_full
 
 *&-------------------------------------------------------------------*
 *&   Выбрать из таблицы ZPM_USR ограничения на операцию i_operation, которую
