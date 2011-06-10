@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '29',
+    minor type n length 2 value '30',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
@@ -85,8 +85,8 @@ Constants:
       end of sel_screen,
     end of screens,
     begin of alv, "общее для гридов (ALV-Grid)
-      begin of variant_save_modes,
-        only_user type c length 1 value 'U', "Сохранять вариант только для пользователя
+      begin of variant_save_modes, "Как можно сохранять внешний вид грида?
+        only_user type c length 1 value 'U', " только для пользователя — 'U'
         only_global type c length 1 value 'X',  "только глобально — 'X'
         all type c length 1 value 'A',          "обоими способами — 'A'
       end of variant_save_modes,
@@ -94,6 +94,9 @@ Constants:
         row type lvc_s_stbl-row value gc_true, "... вертикали
         col type lvc_s_stbl-col value gc_true, "... горизонтали
       end of stable_refresh,
+      begin of sel_mode,
+        d type lvc_s_layo-sel_mode value 'D', "Можно выбирать отдельную ячейку
+      end of sel_mode,
     end of alv,
     begin of data_table,
       table_name type TABNAME value 'ZPMP006_1',
@@ -155,6 +158,7 @@ Types:
       t_excl type ui_functions,
       s_layo type lvc_s_layo,
       s_vari type disvariant,
+      v_save type c,
     end of 01,
   end of ty_s_alv.
 
@@ -529,8 +533,10 @@ Form exit_screen
         Message i000(SU) with 'Исключительная ситуация при вызове методов Free:' lv_exc_text.
       Endtry.
       Free: gs_alv-01-r_grid, gs_alv-01-r_cont, gs_alv-01-r_handler,
-            gt_data, gt_data_before, gs_alv-01-t_fcat, gs_alv-01-t_sort,
-            gs_alv-01-s_layo, gs_alv-01-s_vari.
+            gt_data, gt_data_before,
+            gs_alv-01-t_fcat, gs_alv-01-t_sort, gs_alv-01-t_excl,
+            gs_alv-01-s_layo, gs_alv-01-s_vari,
+            gs_alv-01-v_save.
 
     When others.
       Message i000(SU) with 'Модуль exit_screen не обрабатывает экран' i_dynnr.
@@ -769,21 +775,27 @@ Endform. "get_data
 *& Структура грида заполняется из таблицы ZPMP006_1, которая задана
 *& через глобальную константу gcs-data_table-table_name.
 *&
+*&  -> iv_can_change_variant = разрешение изменять внешний вид грида
 *& <-> ot_fieldcat = структура грида (набор столбцов)
 *& <-> ot_sort = правила сортировки
 *& <-> os_layout = общие настройки внешнего вида
 *& <-> os_variant = вариант внешнего вида, заданный по умолчанию
 *&-------------------------------------------------------------------*
 Form alv_1_prepare
+  using
+    iv_can_change_variant type boolean
   changing:
     ot_fieldcat type lvc_t_fcat
     ot_sort type lvc_t_sort
+    ot_excl type ui_functions
     os_layout type lvc_s_layo
-    os_variant type disvariant.
+    os_variant type disvariant
+    ov_save_mode type c.
 
   Data:
     ls_fcat type lvc_s_fcat,
-    ls_sort type lvc_s_sort.
+    ls_sort type lvc_s_sort,
+    ls_excl type ui_func.
 
 "Field catalog
   Call function 'LVC_FIELDCATALOG_MERGE'
@@ -835,10 +847,28 @@ Form alv_1_prepare
   ls_sort-up = gc_true.
   Append ls_sort to ot_sort.
 
+"Убрать кнопки
+  ls_excl = cl_gui_alv_grid=>mc_mb_sum. "Кнопки "Суммы", "Подсуммы"
+  Append ls_excl to ot_excl.
+
+  ls_excl = cl_gui_alv_grid=>mc_fc_graph. "Кнопка "Графика"
+  Append ls_excl to ot_excl.
+
+"Обработать полномочия на работу с внешним видом грида
+  If iv_can_change_variant <> gc_true.
+  "Убрать все кнопки для пользователей без полномочий
+    ls_excl = cl_gui_alv_grid=>mc_mb_variant. "Кнопки "Формат" — внешний вид
+    Append ls_excl to ot_excl.
+  Else.
+  "Оставить кнопки, задать что можно сохранять внешний вид любыми способами
+    ov_save_mode = gcs-alv-variant_save_modes-all.
+  Endif.
+
 "Layout
   os_layout-cwidth_opt = gc_true.
+  os_layout-sel_mode = gcs-alv-sel_mode-d.
 
-"Variant
+"Variant = вариант внешнего вида
   os_variant-report = sy-repid. "использовать вариант по умолчанию, если есть
 Endform. "alv_1_prepare
 
@@ -849,20 +879,17 @@ Endform. "alv_1_prepare
 *& из таблицы ZPMP006_1, которая задана через глобальную константу
 *& gcs-data_table-table_name.
 *&
-*&  -> iv_permission_for_save_all = разрешение сохранять формат грида
-*&     и локально для пользователя, и глобально для всех пользователей
+*&  -> iv_can_change_variant = разрешение изменять внешний вид грида
 *& <-> ot_data = внутренняя таблица с данными из таблицы БД
 *& <-> os_alv = набор объектов, необходимый для отображения ALV-грида
 *&
 *&-------------------------------------------------------------------*
 Form alv_1_display
   using
-    iv_permission_for_save_all type boolean
+    iv_can_change_variant type boolean
   changing
     ot_data type ty_t_data
     os_alv type ty_s_alv-01.
-
-  Data: lv_save_mode like gcs-alv-variant_save_modes-all.
 
   If os_alv-r_grid is initial.
     Create object os_alv-r_cont
@@ -903,27 +930,26 @@ Form alv_1_display
     Endif.
 
     Perform alv_1_prepare
+      using
+        iv_can_change_variant
       changing
         os_alv-t_fcat
         os_alv-t_sort
+        os_alv-t_excl
         os_alv-s_layo
-        os_alv-s_vari.
+        os_alv-s_vari
+        os_alv-v_save.
 
     Create object os_alv-r_handler.
     Set handler os_alv-r_handler->handle_hotspot_click for os_alv-r_grid.
     Set handler os_alv-r_handler->handle_data_changed for os_alv-r_grid.
 
-    If gc_true = iv_permission_for_save_all.
-      lv_save_mode = gcs-alv-variant_save_modes-all.
-    Else.
-      lv_save_mode = gcs-alv-variant_save_modes-only_user.
-    Endif.
-
     Call method os_alv-r_grid->set_table_for_first_display
       exporting
         is_layout                     = os_alv-s_layo
         is_variant                    = os_alv-s_vari
-        i_save                        = lv_save_mode
+        i_save                        = os_alv-v_save
+        it_toolbar_excluding          = os_alv-t_excl
       changing
         it_outtab                     = ot_data
         it_fieldcatalog               = os_alv-t_fcat
