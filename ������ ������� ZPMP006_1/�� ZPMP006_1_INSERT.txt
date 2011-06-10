@@ -1,3 +1,7 @@
+--- Краткий текст
+Вставить все переданные записи в ZPMP006_1 за один раз
+
+--- Исходный код
 FUNCTION ZPMP006_1_INSERT .
 *"----------------------------------------------------------------------
 *"*"Локальный интерфейс:
@@ -10,13 +14,24 @@ FUNCTION ZPMP006_1_INSERT .
 *"      NUMS_NOT_EQUAL
 *"----------------------------------------------------------------------
   Data:
+    lt_records type zpmp006_1_table_type,
+    ls_record type zpmp006_1,
     lv_num_of_input_records type i, "количество вставляемых строк
     lr_error type ref to CX_ROOT.
 
-"Вставить все переданные записи за один раз
+"Поставить дату/время/автора изменения
+  Move it_records to lt_records.
+  Loop at lt_records into ls_record.
+    ls_record-change_date = sy-datum.
+    ls_record-change_time = sy-uzeit.
+    ls_record-change_name = sy-uname.
+    Modify lt_records from ls_record index sy-tabix.
+  Endloop.
+
+"Вставить все переданные записи в ZPMP006_1 за один раз
   Try.
     Insert ZPMP006_1
-      from table it_records.
+      from table lt_records.
   Catch CX_SY_OPEN_SQL_DB into lr_error.
   "Если произошла ошибка, то отменить все изменения и выйти
     Rollback work.
@@ -31,7 +46,7 @@ FUNCTION ZPMP006_1_INSERT .
     o_num_of_processed = sy-dbcnt.
   Endif.
 
-  Describe table it_records lines lv_num_of_input_records.
+  Describe table lt_records lines lv_num_of_input_records.
   If lv_num_of_input_records = o_num_of_processed.
   "Успешно вставлены все записи — подтвердить все изменения
     Commit work and wait.

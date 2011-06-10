@@ -1,3 +1,7 @@
+--- Краткий текст
+Поставить метку удаления в записях таблицы ZPMP006_1 (по одной записи)
+
+--- Исходный код
 FUNCTION ZPMP006_1_DELETE .
 *"----------------------------------------------------------------------
 *"*"Локальный интерфейс:
@@ -12,13 +16,13 @@ FUNCTION ZPMP006_1_DELETE .
   Data:
     ls_record like line of it_records.
 
-"Обновлять по одной записи
+"Поставить метку удаления в записях таблицы ZPMP006_1 (по одной записи)
   Loop at it_records into ls_record.
     Update ZPMP006_1
       set DELETED = gc_true
-          DEL_DATE = sy-datum
-          DEL_TIME = sy-uzeit
-          DEL_NAME = sy-uname
+          CHANGE_DATE = sy-datum
+          CHANGE_TIME = sy-uzeit
+          CHANGE_NAME = sy-uname
       where UNIQUE_INDEX = ls_record-unique_index.
     If sy-subrc <> 0.
     "Если хотя бы одна запись не обновилась, то отменить все изменения и выйти
