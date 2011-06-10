@@ -25,7 +25,7 @@
 Перечень ПО, входящего в состав АСУТП и СИ
 
 --- Свойства
-Последнее изменение    GUDKOV_TV    27.04.2011
+Последнее изменение    GUDKOV_TV    10.06.2011
 Пакет                  ZPM0                           класс разработки модуля ПМ
 Язык оригинала         RU Русский
 
@@ -41,12 +41,13 @@ UNIQUE_INDEX	ZPMP001_1_INDEX	INT4	10	0	Уникальный номер единицы ПО
 
 Неключевые поля
 STORT	STORT	CHAR	10	0	Местоположение основного средства
-NAME	ZPMP006_1_NAME	CHAR	48	0	Наименование программного обеспечения
+EQUIPMENT_NAME	ZPMP006_1_EQUIPMENT_NAME	CHAR	48	0	Наименование объекта АСУТП
 MANUFACT_PLACE	ZPMP006_1_MANUFACTURER_PLACE	CHAR	48	0	Разработчик/производитель, местоположение
 MANUFACT_NAME	ZPMP006_1_MANUFACTURER_NAME	CHAR	48	0	Разработчик/производитель, название организации
+TYPE	ZPMP006_1_TYPE	CHAR	48	0	Тип/модель
 PROJECT	ZPMP006_1_PROJECT	CHAR	5	0	Номер проекта
 DATE_START	ZPMP006_1_DATE_START	CHAR	7	0	Дата ввода в эксплуатацию
-TYPE	ZPMP006_1_TYPE	CHAR	48	0	Тип/модель
+SOFTWARE_NAME	ZPMP006_1_SOFTWARE_NAME	CHAR	48	0	Наименование программного обеспечения
 VERSION_ORIGINAL	ZPMP006_1_VERSION_ORIG	CHAR	48	0	Версия оригинала
 VERSION_MOD	ZPMP006_1_VERSION_MOD	CHAR	48	0	Версия изменённого ПО
 DEV_ENVIRONMENT	ZPMP006_1_DEV_ENVIRONMENT	CHAR	48	0	Среда разработки
@@ -56,20 +57,21 @@ MOD_DATE	ZPMP006_1_MOD_DATE	CHAR	48	0	Дата модернизации ПО
 NUM_OF_COPIES	ZPMP006_1_NUMBER_OF_COPIES	INT4	10	0	Количество копий
 COMMENTARY	ZPMP006_1_COMMENT	CHAR	80	0	Примечание
 DELETED	ZPMP006_1_DELETED	CHAR	1	0	Запись удалена
-DEL_DATE	ZPMP006_1_DEL_DATE	DATS	8	0	Дата удаления
-DEL_TIME	ZPMP006_1_DEL_TIME	TIMS	6	0	Время удаления
-DEL_NAME	XUBNAME	CHAR	12	0	Имя пользователя в основной записи пользователя
+CHANGE_DATE	ZPMP006_1_CHANGE_DATE	DATS	8	0	Дата изменения
+CHANGE_TIME	ZPMP006_1_CHANGE_TIME	TIMS	6	0	Время изменения
+CHANGE_NAME	XUBNAME	CHAR	12	0	Имя пользователя в основной записи пользователя
 
 --- Справка/проверка знач. ввода
 MANDT	MANDT	CLNT	                              	                                                            		MANDT
 UNIQUE_INDEX	ZPMP006_1_INDEX	INT4	                              	                                                            		ZPM_INDEX
 STORT	STORT	CHAR	                              	Эксплицитная связь средства поиска с полем	ZSTORT	AP_STAND
-NAME	ZPMP006_1_NAME	CHAR	                              	                                                            		ZPM_CHAR048_CASE
+EQUIPMENT_NAME	ZPMP006_1_EQUIPMENT_NAME	CHAR	                              	                                                            		ZPM_CHAR048_CASE
 MANUFACT_PLACE	ZPMP006_1_MANUFACTURER_PLACE	CHAR	                              	                                                            		ZPM_CHAR048_CASE
 MANUFACT_NAME	ZPMP006_1_MANUFACTURER_NAME	CHAR	                              	                                                            		ZPM_CHAR048_CASE
+TYPE	ZPMP006_1_TYPE	CHAR	                              	                                                            		ZPM_CHAR048_CASE
 PROJECT	ZPMP006_1_PROJECT	CHAR	                              	                                                            
 DATE_START	ZPMP006_1_DATE_START	CHAR	                              	                                                            
-TYPE	ZPMP006_1_TYPE	CHAR	                              	                                                            		ZPM_CHAR048_CASE
+SOFTWARE_NAME	ZPMP006_1_SOFTWARE_NAME	CHAR	                              	                                                            		ZPM_CHAR048_CASE
 VERSION_ORIGINAL	ZPMP006_1_VERSION_ORIG	CHAR	                              	                                                            		ZPM_CHAR048_CASE
 VERSION_MOD	ZPMP006_1_VERSION_MOD	CHAR	                              	                                                            		ZPM_CHAR048_CASE
 DEV_ENVIRONMENT	ZPMP006_1_DEV_ENVIRONMENT	CHAR	                              	                                                            		ZPM_CHAR048_CASE
@@ -79,20 +81,21 @@ MOD_DATE	ZPMP006_1_MOD_DATE	CHAR	                              	                
 NUM_OF_COPIES	ZPMP006_1_NUMBER_OF_COPIES	INT4	                              	                                                            		/SAPAPO/INT4
 COMMENTARY	ZPMP006_1_COMMENT	CHAR	                              	                                                            		ZPM_CHAR080_CASE
 DELETED	ZPMP006_1_DELETED	CHAR	                              	Справка по значениям ввода через постоянные значения		XFELD
-DEL_DATE	ZPMP006_1_DEL_DATE	DATS	                              	Справка по значениям ввода на базе типа данных		DATS
-DEL_TIME	ZPMP006_1_DEL_TIME	TIMS	                              	Справка по значениям ввода на базе типа данных		TIMS
-DEL_NAME	XUBNAME	CHAR	                              	                                                            		XUBNAME
+CHANGE_DATE	ZPMP006_1_CHANGE_DATE	DATS	                              	Справка по значениям ввода на базе типа данных		DATS
+CHANGE_TIME	ZPMP006_1_CHANGE_TIME	TIMS	                              	Справка по значениям ввода на базе типа данных		TIMS
+CHANGE_NAME	XUBNAME	CHAR	                              	                                                            		XUBNAME
 
 --- Поля валюты/количества
 MANDT	MANDT	CLNT	                              	                              	Мандант
 UNIQUE_INDEX	ZPMP006_1_INDEX	INT4	                              	                              	Уникальный номер единицы ПО
 STORT	STORT	CHAR	                              	                              	Местоположение основного средства
-NAME	ZPMP006_1_NAME	CHAR	                              	                              	Наименование программного обеспечения
+EQUIPMENT_NAME	ZPMP006_1_EQUIPMENT_NAME	CHAR	                              	                              	Наименование объекта АСУТП
 MANUFACT_PLACE	ZPMP006_1_MANUFACTURER_PLACE	CHAR	                              	                              	Разработчик/производитель, местоположение
 MANUFACT_NAME	ZPMP006_1_MANUFACTURER_NAME	CHAR	                              	                              	Разработчик/производитель, название организации
+TYPE	ZPMP006_1_TYPE	CHAR	                              	                              	Тип/модель
 PROJECT	ZPMP006_1_PROJECT	CHAR	                              	                              	Номер проекта
 DATE_START	ZPMP006_1_DATE_START	CHAR	                              	                              	Дата ввода в эксплуатацию
-TYPE	ZPMP006_1_TYPE	CHAR	                              	                              	Тип/модель
+SOFTWARE_NAME	ZPMP006_1_SOFTWARE_NAME	CHAR	                              	                              	Наименование программного обеспечения
 VERSION_ORIGINAL	ZPMP006_1_VERSION_ORIG	CHAR	                              	                              	Версия оригинала
 VERSION_MOD	ZPMP006_1_VERSION_MOD	CHAR	                              	                              	Версия изменённого ПО
 DEV_ENVIRONMENT	ZPMP006_1_DEV_ENVIRONMENT	CHAR	                              	                              	Среда разработки
@@ -102,6 +105,6 @@ MOD_DATE	ZPMP006_1_MOD_DATE	CHAR	                              	                
 NUM_OF_COPIES	ZPMP006_1_NUMBER_OF_COPIES	INT4	                              	                              	Количество копий
 COMMENTARY	ZPMP006_1_COMMENT	CHAR	                              	                              	Примечание
 DELETED	ZPMP006_1_DELETED	CHAR	                              	                              	Запись удалена
-DEL_DATE	ZPMP006_1_DEL_DATE	DATS	                              	                              	Дата удаления
-DEL_TIME	ZPMP006_1_DEL_TIME	TIMS	                              	                              	Время удаления
-DEL_NAME	XUBNAME	CHAR	                              	                              	Имя пользователя в основной записи пользователя
+CHANGE_DATE	ZPMP006_1_CHANGE_DATE	DATS	                              	                              	Дата изменения
+CHANGE_TIME	ZPMP006_1_CHANGE_TIME	TIMS	                              	                              	Время изменения
+CHANGE_NAME	XUBNAME	CHAR	                              	                              	Имя пользователя в основной записи пользователя

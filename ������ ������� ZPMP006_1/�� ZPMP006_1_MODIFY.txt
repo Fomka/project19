@@ -1,3 +1,7 @@
+--- Краткий текст
+Обновить в ZPMP006_1 все переданные записи за один раз
+
+--- Исходный код
 FUNCTION ZPMP006_1_MODIFY .
 *"----------------------------------------------------------------------
 *"*"Локальный интерфейс:
@@ -8,10 +12,22 @@ FUNCTION ZPMP006_1_MODIFY .
 *"  EXCEPTIONS
 *"      DB_ERROR
 *"----------------------------------------------------------------------
+  Data:
+    lt_records type zpmp006_1_table_type,
+    ls_record type zpmp006_1.
 
-"Обновить все записи за один раз
+"Поставить дату/время/автора изменения
+  Move it_records to lt_records.
+  Loop at lt_records into ls_record.
+    ls_record-change_date = sy-datum.
+    ls_record-change_time = sy-uzeit.
+    ls_record-change_name = sy-uname.
+    Modify lt_records from ls_record index sy-tabix.
+  Endloop.
+
+"Обновить в ZPMP006_1 все переданные записи за один раз
   Update ZPMP006_1
-    from table it_records.
+    from table lt_records.
   If sy-subrc <> 0.
   "Если хотя бы одна запись не обновилась, то отменить все изменения и выйти
     Rollback work.

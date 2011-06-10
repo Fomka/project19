@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '28',
+    minor type n length 2 value '29',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
@@ -100,13 +100,14 @@ Constants:
       key_mandt type NAME_FELD value 'MANDT',
       key_unique_index type NAME_FELD value 'UNIQUE_INDEX',
       stort type NAME_FELD value 'STORT',
-      name type NAME_FELD value 'NAME',
+      equipment_name type NAME_FELD value 'EQUIPMENT_NAME',
       manufact_place type NAME_FELD value 'MANUFACT_PLACE',
       manufact_name type NAME_FELD value 'MANUFACT_NAME',
-      date_start type NAME_FELD value 'DATE_START',
-      project type NAME_FELD value 'PROJECT',
       type type NAME_FELD value 'TYPE',
-      version_origianl type NAME_FELD value 'VERSION_ORIGINAL',
+      project type NAME_FELD value 'PROJECT',
+      date_start type NAME_FELD value 'DATE_START',
+      software_name type NAME_FELD value 'SOFTWARE_NAME',
+      version_original type NAME_FELD value 'VERSION_ORIGINAL',
       version_mod type NAME_FELD value 'VERSION_MOD',
       dev_environment type NAME_FELD value 'DEV_ENVIRONMENT',
       mod_cause type NAME_FELD value 'MOD_CAUSE',
@@ -114,6 +115,10 @@ Constants:
       mod_date type NAME_FELD value 'MOD_DATE',
       num_of_copies type NAME_FELD value 'NUM_OF_COPIES',
       commentary type NAME_FELD value 'COMMENTARY',
+      deleted type NAME_FELD value 'DELETED',
+      change_date type NAME_FELD value 'CHANGE_DATE',
+      change_time type NAME_FELD value 'CHANGE_TIME',
+      change_name type NAME_FELD value 'CHANGE_NAME',
     end of data_table,
   end of gcs.
 
@@ -209,15 +214,16 @@ Selection-screen begin of block b02 with frame title text-004.
     Selection-screen comment 1(40) gv_restr modif id ID2.
     Select-options:
       so1_strt for ZPMP006_1-STORT modif id ID1,
-      so1_name for ZPMP006_1-NAME,
+      so1_name for ZPMP006_1-EQUIPMENT_NAME,
       so1_man1 for ZPMP006_1-MANUFACT_PLACE,
       so1_man2 for ZPMP006_1-MANUFACT_NAME,
+      so1_type for ZPMP006_1-TYPE,
       so1_proj for ZPMP006_1-PROJECT,
       so1_date for ZPMP006_1-DATE_START.
   Selection-screen end of block b10.
   Selection-screen begin of block b20 with frame title text-020.
     Select-options:
-      so2_type for ZPMP006_1-TYPE,
+      so2_name for ZPMP006_1-SOFTWARE_NAME,
       so2_vero for ZPMP006_1-VERSION_ORIGINAL,
       so2_verm for ZPMP006_1-VERSION_MOD,
       so2_denv for ZPMP006_1-DEV_ENVIRONMENT,
@@ -740,12 +746,13 @@ Form get_data
     from ZPMP006_1
     into corresponding fields of table ot_data
     where STORT in so1_strt
-      and NAME in so1_name
+      and EQUIPMENT_NAME in so1_name
       and MANUFACT_PLACE in so1_man1
       and MANUFACT_NAME in so1_man2
+      and TYPE in so1_type
       and DATE_START in so1_date
       and PROJECT in so1_proj
-      and TYPE in so2_type
+      and SOFTWARE_NAME in so2_name
       and VERSION_ORIGINAL in so2_vero
       and VERSION_MOD in so2_verm
       and DEV_ENVIRONMENT in so2_denv
@@ -795,8 +802,12 @@ Form alv_1_prepare
   Loop at ot_fieldcat into ls_fcat.
   "Обработать все столбцы
     If ls_fcat-fieldname = gcs-data_table-key_mandt
-    or ls_fcat-fieldname = gcs-data_table-key_unique_index.
-    "Скрыть столбцы, чьи поля относятся к первичному ключу
+    or ls_fcat-fieldname = gcs-data_table-key_unique_index
+    or ls_fcat-fieldname = gcs-data_table-deleted
+    or ls_fcat-fieldname = gcs-data_table-change_date
+    or ls_fcat-fieldname = gcs-data_table-change_time
+    or ls_fcat-fieldname = gcs-data_table-change_name.
+    "Скрыть столбцы, чьи поля относятся к первичному ключу или к служебным
       ls_fcat-no_out = gc_true.
     Else.
     "Показываемые столбцы сделать доступными для изменения содержимого
@@ -819,7 +830,7 @@ Form alv_1_prepare
   Append ls_sort to ot_sort.
 
   ls_sort-spos = 2.
-  ls_sort-fieldname = gcs-data_table-name.
+  ls_sort-fieldname = gcs-data_table-equipment_name.
   ls_sort-down = gc_false.
   ls_sort-up = gc_true.
   Append ls_sort to ot_sort.
