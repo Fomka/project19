@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '31',
+    minor type n length 2 value '32',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "ћетод cl_icon->get_icon дл€ 'ICON_DELETE'
@@ -64,15 +64,15 @@ Constants:
         min type gui_status value '0001', "ћинимум функций
         save type gui_status value '0002',"“о же + сохранение
       end of status,
-      begin of data_new, "Ёкран дл€ ввода новых записей
+      begin of data_create, "Ёкран дл€ ввода новых записей, режим CREATE
         number type i value 10,
         title type gui_title value '0010',
-      end of data_new,
-      begin of data_change, "Ёкран дл€ изменени€ и ввода записей
+      end of data_create,
+      begin of data_change, "Ёкран дл€ изменени€ записей, режим CHANGE
         number type i value 20,
         title type gui_title value '0020',
       end of data_change,
-      begin of data_view, "Ёкран дл€ просмотра
+      begin of data_view, "Ёкран дл€ просмотра записей, режим VIEW
         number type i value 30,
         title type gui_title value '0030',
       end of data_view,
@@ -360,9 +360,9 @@ Module init_screen output. "ќбщий дл€ всех экранов Ч установить GUI-статус
   Set pf-status gcs-screens-status-min. "”становить минимальный набор функций
   "»нициировать экземпл€р ALV-Grid'а и заголовок, соответствующие текущему экрану
   Case sy-dynnr.
-    When gcs-screens-data_new-number.
+    When gcs-screens-data_create-number.
       Set pf-status gcs-screens-status-save. "ћинимум + сохранение
-      Set titlebar gcs-screens-data_new-title.
+      Set titlebar gcs-screens-data_create-title.
       Perform alv_1_display using gs_permissions-all changing gt_data gs_alv-01.
       Call method gs_alv-01-r_grid->set_ready_for_input
         exporting
@@ -442,7 +442,7 @@ Form dispatch_user_command
       Case lv_ucomm.
 
         When gcs-commands-sel_screen-goto_new.
-          Call screen gcs-screens-data_new-number.
+          Call screen gcs-screens-data_create-number.
 
         When gcs-commands-sel_screen-goto_search.
           Perform get_data changing gt_data gv_row_count.
@@ -471,7 +471,7 @@ Form dispatch_user_command
 
       Endcase.
 
-    When gcs-screens-data_new-number.
+    When gcs-screens-data_create-number.
       Case lv_ucomm.
         When gcs-commands-new_screen-save.
           Perform save_data
@@ -554,7 +554,7 @@ Form exit_screen
 
   Case i_dynnr.
 
-    When gcs-screens-data_new-number
+    When gcs-screens-data_create-number
       or gcs-screens-data_change-number
       or gcs-screens-data_view-number.
       Try.
@@ -839,6 +839,7 @@ Endform. "get_data
 *& —труктура грида заполн€етс€ из таблицы ZPMP006_1, котора€ задана
 *& через глобальную константу gcs-data_table-table_name.
 *&
+*&  -> iv_dynnr = номер экрана, дл€ которого подготавливаетс€ ALV-грид
 *&  -> iv_can_change_variant = разрешение измен€ть внешний вид грида
 *& <-> ot_fieldcat = структура грида (набор столбцов)
 *& <-> ot_sort = правила сортировки
@@ -847,6 +848,7 @@ Endform. "get_data
 *&-------------------------------------------------------------------*
 Form alv_1_prepare
   using
+    iv_dynnr type sy-dynnr
     iv_can_change_variant type boolean
   changing:
     ot_fieldcat type lvc_t_fcat
@@ -934,6 +936,14 @@ Form alv_1_prepare
 
 "Variant = вариант внешнего вида
   os_variant-report = sy-repid. "использовать вариант по умолчанию, если есть
+
+"ќбработка экранов
+  Case iv_dynnr.
+    When gcs-screens-data_create-number. "ƒл€ экрана CREATE
+
+    When gcs-screens-data_change-number. "ƒл€ экрана CHANGE
+      os_layout-no_rowins = gc_true. "”брать возможность добавлени€ строк
+  Endcase.
 Endform. "alv_1_prepare
 
 *&-------------------------------------------------------------------*
@@ -995,6 +1005,7 @@ Form alv_1_display
 
     Perform alv_1_prepare
       using
+        sy-dynnr
         iv_can_change_variant
       changing
         os_alv-t_fcat
