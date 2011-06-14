@@ -25,7 +25,7 @@
 Перечень ПО, входящего в состав АСУТП и СИ
 
 --- Свойства
-Последнее изменение    GUDKOV_TV    10.06.2011
+Последнее изменение    GUDKOV_TV    14.06.2011
 Пакет                  ZPM0                           класс разработки модуля ПМ
 Язык оригинала         RU Русский
 
@@ -59,7 +59,7 @@ COMMENTARY	ZPMP006_1_COMMENT	CHAR	80	0	Примечание
 DELETED	ZPMP006_1_DELETED	CHAR	1	0	Запись удалена
 CHANGE_DATE	ZPMP006_1_CHANGE_DATE	DATS	8	0	Дата изменения
 CHANGE_TIME	ZPMP006_1_CHANGE_TIME	TIMS	6	0	Время изменения
-CHANGE_NAME	XUBNAME	CHAR	12	0	Имя пользователя в основной записи пользователя
+CHANGE_NAME	ZPMP006_1_CHANGE_NAME	CHAR	12	0	Автор изменения
 
 --- Справка/проверка знач. ввода
 MANDT	MANDT	CLNT	                              	                                                            		MANDT
@@ -83,7 +83,7 @@ COMMENTARY	ZPMP006_1_COMMENT	CHAR	                              	               
 DELETED	ZPMP006_1_DELETED	CHAR	                              	Справка по значениям ввода через постоянные значения		XFELD
 CHANGE_DATE	ZPMP006_1_CHANGE_DATE	DATS	                              	Справка по значениям ввода на базе типа данных		DATS
 CHANGE_TIME	ZPMP006_1_CHANGE_TIME	TIMS	                              	Справка по значениям ввода на базе типа данных		TIMS
-CHANGE_NAME	XUBNAME	CHAR	                              	                                                            		XUBNAME
+CHANGE_NAME	ZPMP006_1_CHANGE_NAME	CHAR	                              	                                                            		XUBNAME
 
 --- Поля валюты/количества
 MANDT	MANDT	CLNT	                              	                              	Мандант
@@ -107,4 +107,4 @@ COMMENTARY	ZPMP006_1_COMMENT	CHAR	                              	               
 DELETED	ZPMP006_1_DELETED	CHAR	                              	                              	Запись удалена
 CHANGE_DATE	ZPMP006_1_CHANGE_DATE	DATS	                              	                              	Дата изменения
 CHANGE_TIME	ZPMP006_1_CHANGE_TIME	TIMS	                              	                              	Время изменения
-CHANGE_NAME	XUBNAME	CHAR	                              	                              	Имя пользователя в основной записи пользователя
+CHANGE_NAME	ZPMP006_1_CHANGE_NAME	CHAR	                              	                              	Автор изменения

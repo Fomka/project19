@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '32',
+    minor type n length 2 value '33',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
@@ -242,7 +242,10 @@ Selection-screen begin of block b02 with frame title text-004.
       so2_numc for ZPMP006_1-NUM_OF_COPIES default 1.
   Selection-screen end of block b20.
   Select-options:
-    so3_comm for ZPMP006_1-COMMENTARY.
+    so3_comm for ZPMP006_1-COMMENTARY,
+    so3_chad for ZPMP006_1-CHANGE_DATE,
+    so3_chat for ZPMP006_1-CHANGE_TIME,
+    so3_chan for ZPMP006_1-CHANGE_NAME.
   Parameters:
   "toggle change = включить/выключить режим изменения
     p_tog_ch as checkbox
@@ -830,7 +833,10 @@ Form get_data
       and MOD_WORKER in so2_mwor
       and MOD_DATE in so2_mdat
       and NUM_OF_COPIES in so2_numc
-      and COMMENTARY in so3_comm.
+      and COMMENTARY in so3_comm
+      and CHANGE_DATE IN so3_chad
+      and CHANGE_TIME IN so3_chat
+      and CHANGE_NAME IN so3_chan.
   ov_count = sy-dbcnt.
 Endform. "get_data
 
@@ -881,16 +887,19 @@ Form alv_1_prepare
   "Обработать все столбцы
     If ls_fcat-fieldname = gcs-data_table-key_mandt
     or ls_fcat-fieldname = gcs-data_table-key_unique_index
-    or ls_fcat-fieldname = gcs-data_table-deleted
-    or ls_fcat-fieldname = gcs-data_table-change_date
-    or ls_fcat-fieldname = gcs-data_table-change_time
-    or ls_fcat-fieldname = gcs-data_table-change_name.
+    or ls_fcat-fieldname = gcs-data_table-deleted.
     "Скрыть столбцы, чьи поля относятся к первичному ключу или к служебным
       ls_fcat-no_out = gc_true.
     Else.
     "Показываемые столбцы сделать доступными для изменения содержимого
       ls_fcat-edit = gc_true.
     "Ещё нужно вызвать метод set_ready_for_input, что сделано в другом месте
+    Endif.
+
+    If ls_fcat-fieldname = gcs-data_table-change_date
+    or ls_fcat-fieldname = gcs-data_table-change_time
+    or ls_fcat-fieldname = gcs-data_table-change_name.
+      ls_fcat-edit = gc_false.
     Endif.
 
     If ls_fcat-fieldname = gcs-data_table-stort.
