@@ -6,18 +6,20 @@ FUNCTION ZPMP006_1_DELETE .
 *"----------------------------------------------------------------------
 *"*"Локальный интерфейс:
 *"  IMPORTING
-*"     REFERENCE(IT_RECORDS) TYPE  ZPMP006_1_TABLE_TYPE
+*"     REFERENCE(IV_DO_COMMIT) TYPE  BOOLEAN DEFAULT ' '
 *"  EXPORTING
 *"     REFERENCE(O_NUM_OF_PROCESSED) TYPE  I
+*"  CHANGING
+*"     REFERENCE(Cct_records) TYPE  ZPMP006_1_TABLE_TYPE
 *"  EXCEPTIONS
 *"      DB_ERROR
 *"----------------------------------------------------------------------
 
   Data:
-    ls_record like line of it_records.
+    ls_record like line of ct_records.
 
 "Поставить метку удаления в записях таблицы ZPMP006_1 (по одной записи)
-  Loop at it_records into ls_record.
+  Loop at ct_records into ls_record.
     Update ZPMP006_1
       set DELETED = gc_true
           CHANGE_DATE = sy-datum
@@ -34,6 +36,8 @@ FUNCTION ZPMP006_1_DELETE .
   Endloop.
 
 "Успешно обновлены все записи — подтвердить все изменения
-  Commit work and wait.
+  If iv_do_commit = gc_true.
+    Commit work and wait.
+  Endif.
 
 Endfunction.

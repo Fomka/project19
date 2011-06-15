@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '34',
+    minor type n length 2 value '35',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
@@ -1086,7 +1086,12 @@ Form save_data
       deleted type i,
       inserted type i,
       modified type i,
-    end of ls_num_of.
+    end of ls_num_of,
+  "Для подтягивания изменений, которые делаются функ. модулями ZPMP006_1_*.
+    lt_data_source type ty_t_data, "Содержимое таблиц del, ins, mod
+    ls_data_source type ty_s_data, "Строка с данными из таблиц del, ins, mod
+    ls_data_destination type ty_s_data. "Строка для записи в ot_data
+
 
 "Подтянуть текущее состояние ячеек ALV-грида в связанную с ним таблицу ot_data
   Call method is_alv-r_grid->check_changed_data
@@ -1116,9 +1121,11 @@ Form save_data
 "Применить изменения к таблице ZPMP006_1
   Call function 'ZPMP006_1_DELETE'
     exporting
-      it_records = lt_del_rows
+      iv_do_commit = gc_false
     importing
       o_num_of_processed = ls_num_of-deleted
+    changing
+      ct_records = lt_del_rows
     exceptions
       db_error = 1.
   If sy-subrc <> 0.
@@ -1128,9 +1135,11 @@ Form save_data
   Endif.
   Call function 'ZPMP006_1_INSERT'
     exporting
-      it_records = lt_ins_rows
+      iv_do_commit = gc_false
     importing
       o_num_of_processed = ls_num_of-inserted
+    changing
+      ct_records = lt_ins_rows
     exceptions
       db_error = 1
       nums_not_equal = 2.
@@ -1141,9 +1150,11 @@ Form save_data
   Endif.
   Call function 'ZPMP006_1_MODIFY'
     exporting
-      it_records = lt_mod_rows
+      iv_do_commit = gc_false
     importing
       o_num_of_processed = ls_num_of-modified
+    changing
+      ct_records = lt_mod_rows
     exceptions
       db_error = 1.
   If sy-subrc <> 0.
@@ -1152,11 +1163,50 @@ Form save_data
     Exit.
   Endif.
 
+"Подтвердить сделанные в таблице ZPMP006_1 изменения
+  Commit work and wait.
+
+"Отчитаться
   Message i000(su) with 'Удалено/добавлено/изменено строк:'
                         ls_num_of-deleted
                         ls_num_of-inserted
                         ls_num_of-modified.
-  Move ot_data to ot_data_before. "Запомнить содержимое до изменений, 3 из 3
+
+"Собрать таблицы del, ins, mod в ot_data — подтянуть содержимое полей дата,
+"время и автор изменения, которое было заполнено функ. модулями ZPMP006_1_*.
+  Do 3 times.
+  "Обработать 3 таблицы (del, mod, ins)
+    Refresh lt_data_source.
+    Case sy-index.
+      When 1.
+        Move lt_del_rows to lt_data_source.
+      When 2.
+        Move lt_mod_rows to lt_data_source.
+      When others.
+        Move lt_ins_rows to lt_data_source.
+    Endcase.
+  "Таблица lt_data_source содержит очередную таблицу — del, mod или ins
+    Loop at lt_data_source into ls_data_source.
+      Read table ot_data into ls_data_destination
+        with key unique_index = ls_data_source-unique_index.
+      If sy-subrc <> 0.
+        Message w000(su)
+          with 'Не удалось обработать запись с индексом'
+               ls_data_source-unique_index
+               ', чтобы отобразить данные о последнем изменении'
+               'на экране. Сообщите разработчикам по т. 6-04-42'.
+        Continue. "Перейти к следующей записи в lt_data_source
+      Endif.
+    "Найдена запись, в которую нужно подтянуть данные о последнем изменении
+      ls_data_destination-change_date = ls_data_source-change_date.
+      ls_data_destination-change_time = ls_data_source-change_time.
+      ls_data_destination-change_name = ls_data_source-change_name.
+      Modify ot_data from ls_data_destination index sy-tabix.
+    Endloop.
+  Enddo.
+
+"Запомнить содержимое до изменений, 3 из 3
+  Move ot_data to ot_data_before.
 Endform. "save_data
 
 *&-------------------------------------------------------------------*
