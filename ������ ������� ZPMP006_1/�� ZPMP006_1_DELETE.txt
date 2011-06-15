@@ -20,17 +20,21 @@ FUNCTION ZPMP006_1_DELETE .
 
 "ѕоставить метку удалени€ в запис€х таблицы ZPMP006_1 (по одной записи)
   Loop at ct_records into ls_record.
+    ls_record-change_date = sy-datum.
+    ls_record-change_time = sy-uzeit.
+    ls_record-change_name = sy-uname.
     Update ZPMP006_1
       set DELETED = gc_true
-          CHANGE_DATE = sy-datum
-          CHANGE_TIME = sy-uzeit
-          CHANGE_NAME = sy-uname
+          CHANGE_DATE = ls_record-change_date
+          CHANGE_TIME = ls_record-change_time
+          CHANGE_NAME = ls_record-change_name
       where UNIQUE_INDEX = ls_record-unique_index.
     If sy-subrc <> 0.
     "≈сли хот€ бы одна запись не обновилась, то отменить все изменени€ и выйти
       Rollback work.
       Raise DB_ERROR.
     Else.
+      Modify ct_records from ls_record index sy-tabix.
       Add 1 to o_num_of_processed.
     Endif.
   Endloop.
