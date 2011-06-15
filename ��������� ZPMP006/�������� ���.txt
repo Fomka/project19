@@ -31,10 +31,13 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '35',
+    minor type n length 2 value '36',
   end of gc_version,
   begin of gcs,
-    icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
+  "Коды иконок из вызова метода cl_icon->get_icon для...
+    icon_delete type iconname value '@B_DELE@', "... 'ICON_DELETE'
+    icon_undelete type iconname value '@F_UNDO@', "... 'ICON_SYSTEM_UNDO'
+    icon_excel type iconname value '@X__XLS@', "... 'ICON_XLS'
     werks type T499S-WERKS value '1000', "номер завода, для проверки местоположений
     begin of permission_string,
       create type ZPM_USR-OPERATION value 'CREATE',
@@ -85,6 +88,17 @@ Constants:
       end of sel_screen,
     end of screens,
     begin of alv, "общее для гридов (ALV-Grid)
+      begin of toolbar,
+        begin of button_type,
+          normal type stb_button-butn_type value 0, "Обычная кнопка
+          menu_default type stb_button-butn_type value 1, "Меню с умолчанием
+          menu type stb_button-butn_type value 2, "Меню без кнопки по умолчанию
+          separator type stb_button-butn_type value 3, "Разделитель
+          radio type stb_button-butn_type value 4, "Радиокнопка
+          checkbox type stb_button-butn_type value 5, "Кнопка-галочка
+          menu_entry type stb_button-butn_type value 6, "Элемент меню
+        end of button_type,
+      end of toolbar,
       begin of variant_save_modes, "Как можно сохранять внешний вид грида?
         only_user type c length 1 value 'U', " только для пользователя — 'U'
         only_global type c length 1 value 'X',  "только глобально — 'X'
@@ -131,6 +145,12 @@ Constants:
 Class lcl_grid_event_handler definition final.
   Public section.
     Methods:
+      handle_toolbar "Для добавления своих кнопок в панель инструментов
+        for event toolbar of cl_gui_alv_grid
+          importing sender e_object e_interactive,
+      handle_user_command
+        for event user_command of cl_gui_alv_grid
+          importing sender e_ucomm,
       handle_hotspot_click
         for event hotspot_click of cl_gui_alv_grid
           importing sender e_column_id es_row_no,
@@ -186,6 +206,24 @@ Data:
 *& Обработчик событий для всех типов ALV-гридов, реализация
 *&-------------------------------------------------------------------*
 Class lcl_grid_event_handler implementation.
+  Method handle_toolbar.
+    "Переключение между гридами
+    Case sender.
+      When gs_alv-01-r_grid.
+        Perform alv_1_handle_toolbar using e_object.
+      When others.
+        Message i000(SU) with 'Событие toolbar' 'не обрабатывается для этого ALV-Grid''а'.
+    Endcase.
+  Endmethod.
+  Method handle_user_command.
+    "Переключение между гридами
+    Case sender.
+      When gs_alv-01-r_grid.
+        Perform alv_1_handle_user_command using e_ucomm.
+      When others.
+        Message i000(SU) with 'Событие toolbar' 'не обрабатывается для этого ALV-Grid''а'.
+    Endcase.
+  Endmethod.
   Method handle_hotspot_click.
     "Переключение между гридами
     Case sender.
@@ -1027,6 +1065,8 @@ Form alv_1_display
         os_alv-v_save.
 
     Create object os_alv-r_handler.
+    Set handler os_alv-r_handler->handle_toolbar for os_alv-r_grid.
+    Set handler os_alv-r_handler->handle_user_command for os_alv-r_grid.
     Set handler os_alv-r_handler->handle_hotspot_click for os_alv-r_grid.
     Set handler os_alv-r_handler->handle_data_changed for os_alv-r_grid.
 
@@ -1351,6 +1391,67 @@ Form alv_1_handle_data_changed
   Endloop.
 
 Endform. "alv_1_handle_data_changed
+
+*&-------------------------------------------------------------------*
+*&   Добавить свои кнопки на панель инструментов в ALV-гриде
+*&-------------------------------------------------------------------*
+Form alv_1_handle_toolbar
+  using
+    i_object type ref to cl_alv_event_toolbar_set.
+
+  Data:
+    ls_toolbar type stb_button.
+
+  Clear ls_toolbar.
+  ls_toolbar-butn_type = gcs-alv-toolbar-button_type-separator. "Разделитель
+  Append ls_toolbar to i_object->mt_toolbar.
+
+  If sy-dynnr = gcs-screens-data_change-number.
+    Clear ls_toolbar.
+    ls_toolbar-function = 'DELETE'.
+    ls_toolbar-butn_type = gcs-alv-toolbar-button_type-normal. "Обычная кнопка
+    ls_toolbar-icon = gcs-icon_delete.
+    ls_toolbar-text = 'Удалить'.
+    ls_toolbar-quickinfo = 'Удалить выбранные строки'.
+    Append ls_toolbar to i_object->mt_toolbar.
+
+    Clear ls_toolbar.
+    ls_toolbar-function = 'UNDELETE'.
+    ls_toolbar-butn_type = gcs-alv-toolbar-button_type-normal. "Обычная кнопка
+    ls_toolbar-icon = gcs-icon_undelete.
+    ls_toolbar-text = 'Отменить удаление'.
+    ls_toolbar-quickinfo = 'Отменить для выбранных строк'.
+    Append ls_toolbar to i_object->mt_toolbar.
+  Endif.
+
+  If sy-dynnr = gcs-screens-data_change-number or
+     sy-dynnr = gcs-screens-data_view-number.
+    Clear ls_toolbar.
+    ls_toolbar-function = 'EXCEL'.
+    ls_toolbar-butn_type = gcs-alv-toolbar-button_type-normal. "Обычная кнопка
+    ls_toolbar-icon = gcs-icon_excel.
+    ls_toolbar-text = 'Выгрузить в Excel'.
+    ls_toolbar-quickinfo = 'Выгрузить таблицу в файл Excel'.
+    Append ls_toolbar to i_object->mt_toolbar.
+  Endif.
+
+Endform. "alv_1_handle_toolbar
+
+*&-------------------------------------------------------------------*
+*&   Обработать нажатие на свои кнопки, добавленные на панель инструментов
+*&-------------------------------------------------------------------*
+Form alv_1_handle_user_command
+  using
+    i_ucomm type sy-ucomm.
+
+  Case i_ucomm.
+    When 'DELETE'.
+    When 'UNDELETE'.
+    When 'EXCEL'.
+    When others.
+  Endcase.
+  Message i000(su) with 'Команда' i_ucomm 'пока не обрабатывается'.
+Endform. "alv_1_handle_user_command
 
 *&-------------------------------------------------------------------*
 *&   Выбрать из таблицы ZPMP006_1 максимальное значение индекса
