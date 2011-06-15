@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '33',
+    minor type n length 2 value '34',
   end of gc_version,
   begin of gcs,
     icon_delete type iconname value '@B_DELE@', "Метод cl_icon->get_icon для 'ICON_DELETE'
@@ -481,6 +481,8 @@ Form dispatch_user_command
             using gs_alv-01
             changing gt_data_before
                      gt_data.
+        "Вернуться на экран выбора после успешного сохранения
+          Perform exit_screen using sy-dynnr.
         When others. "Команда не найдена в списке обрабатываемых
           Message i000(SU) with 'На экране' iv_dynnr 'не обрабатывается команда' lv_ucomm.
       Endcase.
@@ -1060,6 +1062,10 @@ Endform. "alv_1_display
 *&   Сохранить данные, введённые в ALV-грид. Сохраняемые строки находятся
 *& через сравнение содержимого привязанной к ALV-гриду внутренней таблицы в
 *& два момента: до и после вызова метода check_changed_data.
+*&   Если при сохранении происходит ошибка, то выдаётся сообщение типа E. Если
+*& save_data была вызвана из модуля PAI, то после сообщения типа E обработка
+*& модуля прекращается, экран остаётся прежним, объекты не сбрасываются — можно
+*& исправить ошибку и попробовать сохранить ещё раз.
 *&
 *&   -> is_alv = структура объектов, относящихся к ALV-гриду
 *&  <-> ot_data =  таблица, привязанная к ALV-гриду в методе
