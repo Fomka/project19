@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '36',
+    minor type n length 2 value '37',
   end of gc_version,
   begin of gcs,
   "Коды иконок из вызова метода cl_icon->get_icon для...
@@ -47,6 +47,11 @@ Constants:
       all type ZPM_USR-OPERATION value 'ALL',
     end of permission_string,
     begin of commands,
+      begin of alv, "Для ALV-грида
+        delete type sy-ucomm value 'DELETE',
+        undelete type sy-ucomm value 'UNDELETE',
+        excel type sy-ucomm value 'EXCEL',
+      end of alv,
       "Общие для всех экранов
       help type sy-ucomm value 'HELP',
       version type sy-ucomm value 'VERSION',
@@ -88,6 +93,11 @@ Constants:
       end of sel_screen,
     end of screens,
     begin of alv, "общее для гридов (ALV-Grid)
+      begin of color,
+        default type c length 4 value '', "белый для режима редактирования
+        lightred type c length 4 value 'C600', "красный (6), не усиленный (0)
+        red type c length 4 value 'C610', "красный (6), усиленный (1)
+      end of color,
       begin of toolbar,
         begin of button_type,
           normal type stb_button-butn_type value 0, "Обычная кнопка
@@ -136,6 +146,8 @@ Constants:
       change_date type NAME_FELD value 'CHANGE_DATE',
       change_time type NAME_FELD value 'CHANGE_TIME',
       change_name type NAME_FELD value 'CHANGE_NAME',
+      alv_row_color type NAME_FELD value 'ALV_ROW_COLOR',
+      alv_deleted type NAME_FELD value 'ALV_DELETED',
     end of data_table,
   end of gcs.
 
@@ -219,7 +231,7 @@ Class lcl_grid_event_handler implementation.
     "Переключение между гридами
     Case sender.
       When gs_alv-01-r_grid.
-        Perform alv_1_handle_user_command using e_ucomm.
+        Perform alv_1_handle_user_command using sender e_ucomm.
       When others.
         Message i000(SU) with 'Событие toolbar' 'не обрабатывается для этого ALV-Grid''а'.
     Endcase.
@@ -532,6 +544,10 @@ Form dispatch_user_command
             using gs_alv-01
             changing gt_data_before
                      gt_data.
+        "Обновить ALV-грид
+          Call method gs_alv-01-r_grid->refresh_table_display
+            exporting
+              is_stable = gcs-alv-stable_refresh.
         When others. "Команда не найдена в списке обрабатываемых
           Message i000(SU) with 'На экране' iv_dynnr 'не обрабатывается команда' lv_ucomm.
       Endcase.
@@ -876,7 +892,8 @@ Form get_data
       and COMMENTARY in so3_comm
       and CHANGE_DATE IN so3_chad
       and CHANGE_TIME IN so3_chat
-      and CHANGE_NAME IN so3_chan.
+      and CHANGE_NAME IN so3_chan
+      and DELETED EQ gc_false.
   ov_count = sy-dbcnt.
 Endform. "get_data
 
@@ -982,6 +999,7 @@ Form alv_1_prepare
 "Layout
   os_layout-cwidth_opt = gc_true.
   os_layout-sel_mode = gcs-alv-sel_mode-d.
+  os_layout-info_fname = gcs-data_table-alv_row_color.
 
 "Variant = вариант внешнего вида
   os_variant-report = sy-repid. "использовать вариант по умолчанию, если есть
@@ -991,7 +1009,8 @@ Form alv_1_prepare
     When gcs-screens-data_create-number. "Для экрана CREATE
 
     When gcs-screens-data_change-number. "Для экрана CHANGE
-      os_layout-no_rowins = gc_true. "Убрать возможность добавления строк
+    "Убрать возможность добавления/удаления строк стандартными средствами ALV
+      os_layout-no_rowins = gc_true.
   Endcase.
 Endform. "alv_1_prepare
 
@@ -1101,7 +1120,11 @@ Endform. "alv_1_display
 *&-------------------------------------------------------------------*
 *&   Сохранить данные, введённые в ALV-грид. Сохраняемые строки находятся
 *& через сравнение содержимого привязанной к ALV-гриду внутренней таблицы в
-*& два момента: до и после вызова метода check_changed_data.
+*& два момента: до и после вызова метода check_changed_data. Особый случай —
+*& строки, помеченные на удаление через нестандартную (свою) кнопку DELETE. Они
+*& определяются, как изменённые стандартными средствами ALV-грида, переносятся
+*& из таблицы изменённых lt_mod_rows к таблице удалённых lt_del_rows.
+*&
 *&   Если при сохранении происходит ошибка, то выдаётся сообщение типа E. Если
 *& save_data была вызвана из модуля PAI, то после сообщения типа E обработка
 *& модуля прекращается, экран остаётся прежним, объекты не сбрасываются — можно
@@ -1157,6 +1180,13 @@ Form save_data
       using ot_data
             ot_data_before
       changing lt_mod_rows.
+"Определены все удалённые/добавленные/изменённые стандартными средствами строки
+"Перенести к удалённым строкам те из изменённых, что были удалены нестандартно,
+"то есть те, что посчитаны как изменённые стандартно.
+  Loop at lt_mod_rows into ls_data_source where alv_deleted = gc_true.
+    Delete lt_mod_rows index sy-tabix. "Удалить из одной таблицы
+    Append ls_data_source to lt_del_rows. "Вставить в другую таблицу
+  Endloop.
 
 "Применить изменения к таблице ZPMP006_1
   Call function 'ZPMP006_1_DELETE'
@@ -1212,20 +1242,18 @@ Form save_data
                         ls_num_of-inserted
                         ls_num_of-modified.
 
-"Собрать таблицы del, ins, mod в ot_data — подтянуть содержимое полей дата,
+"Собрать таблицы ins, mod в ot_data — подтянуть содержимое полей дата,
 "время и автор изменения, которое было заполнено функ. модулями ZPMP006_1_*.
-  Do 3 times.
-  "Обработать 3 таблицы (del, mod, ins)
+  Do 2 times.
+  "Обработать 2 таблицы (mod, ins)
     Refresh lt_data_source.
     Case sy-index.
       When 1.
-        Move lt_del_rows to lt_data_source.
-      When 2.
         Move lt_mod_rows to lt_data_source.
       When others.
         Move lt_ins_rows to lt_data_source.
     Endcase.
-  "Таблица lt_data_source содержит очередную таблицу — del, mod или ins
+  "Таблица lt_data_source содержит очередную таблицу — mod или ins
     Loop at lt_data_source into ls_data_source.
       Read table ot_data into ls_data_destination
         with key unique_index = ls_data_source-unique_index.
@@ -1244,6 +1272,9 @@ Form save_data
       Modify ot_data from ls_data_destination index sy-tabix.
     Endloop.
   Enddo.
+
+"Удалить записи, которые были помечены, как удалённые
+  Delete ot_data where alv_deleted = gc_true.
 
 "Запомнить содержимое до изменений, 3 из 3
   Move ot_data to ot_data_before.
@@ -1408,7 +1439,7 @@ Form alv_1_handle_toolbar
 
   If sy-dynnr = gcs-screens-data_change-number.
     Clear ls_toolbar.
-    ls_toolbar-function = 'DELETE'.
+    ls_toolbar-function = gcs-commands-alv-delete.
     ls_toolbar-butn_type = gcs-alv-toolbar-button_type-normal. "Обычная кнопка
     ls_toolbar-icon = gcs-icon_delete.
     ls_toolbar-text = 'Удалить'.
@@ -1416,7 +1447,7 @@ Form alv_1_handle_toolbar
     Append ls_toolbar to i_object->mt_toolbar.
 
     Clear ls_toolbar.
-    ls_toolbar-function = 'UNDELETE'.
+    ls_toolbar-function = gcs-commands-alv-undelete.
     ls_toolbar-butn_type = gcs-alv-toolbar-button_type-normal. "Обычная кнопка
     ls_toolbar-icon = gcs-icon_undelete.
     ls_toolbar-text = 'Отменить удаление'.
@@ -1427,7 +1458,7 @@ Form alv_1_handle_toolbar
   If sy-dynnr = gcs-screens-data_change-number or
      sy-dynnr = gcs-screens-data_view-number.
     Clear ls_toolbar.
-    ls_toolbar-function = 'EXCEL'.
+    ls_toolbar-function = gcs-commands-alv-excel.
     ls_toolbar-butn_type = gcs-alv-toolbar-button_type-normal. "Обычная кнопка
     ls_toolbar-icon = gcs-icon_excel.
     ls_toolbar-text = 'Выгрузить в Excel'.
@@ -1442,16 +1473,112 @@ Endform. "alv_1_handle_toolbar
 *&-------------------------------------------------------------------*
 Form alv_1_handle_user_command
   using
+    ir_alv type ref to cl_gui_alv_grid
     i_ucomm type sy-ucomm.
 
+  Data:
+    lv_row_count type i, "Кол-во строк, для которых был обработан флаг удаления
+    lv_message type string.
+
   Case i_ucomm.
-    When 'DELETE'.
-    When 'UNDELETE'.
-    When 'EXCEL'.
+
+    When gcs-commands-alv-delete.
+      Perform set_unset_deletion_flag
+        using
+          gc_true
+          ir_alv
+        changing
+          gt_data
+          lv_row_count.
+      Message s000(su) with 'Строк помечено на удаление:'
+                            lv_row_count
+                            'шт.'.
+
+    When gcs-commands-alv-undelete.
+      Perform set_unset_deletion_flag
+        using
+          gc_false
+          ir_alv
+        changing
+          gt_data
+          lv_row_count.
+      Message s000(su) with 'Удаление отменено для'
+                            lv_row_count
+                            'шт. строк'.
+
+    When gcs-commands-alv-excel.
+      Message i000(su) with 'Команда' i_ucomm 'пока не обрабатывается'.
+
     When others.
+      Message i000(su) with 'Команда' i_ucomm 'пока не обрабатывается'.
+
   Endcase.
-  Message i000(su) with 'Команда' i_ucomm 'пока не обрабатывается'.
+
 Endform. "alv_1_handle_user_command
+
+*&-------------------------------------------------------------------*
+*&   Поставить/снять в выделенных строках метку удаления
+*&
+*&  -> iv_set_deletion = флаг, если 'X' — то во всех выделенных строках ставить
+*&                       метку удаления, иначе — снимать метку
+*&
+*&  -> ir_alv = ссылка на грид, в котором выделены строки
+*& <-> ot_data = таблица, привязанная к гриду
+*& <-> ov_row_count = количество строк, у которых был переключен флаг
+*&-------------------------------------------------------------------*
+Form set_unset_deletion_flag
+  using
+    iv_set_deletion type boolean
+    ir_alv type ref to cl_gui_alv_grid
+  changing
+    ot_data type ty_t_data
+    ov_row_count type i.
+
+  Data:
+    lt_selected_rows type lvc_t_roid,
+    ls_selected_row type lvc_s_roid,
+    lv_alv_deleted type ty_s_data-alv_deleted,
+    lv_alv_row_color type ty_s_data-alv_row_color,
+    ls_data type ty_s_data.
+
+  Clear ov_row_count.
+
+  Call method ir_alv->get_selected_rows
+    importing
+      et_row_no = lt_selected_rows.
+
+  If lt_selected_rows is initial.
+    Exit.
+  Endif.
+
+  If iv_set_deletion = gc_true.
+    lv_alv_deleted = gc_true.
+    lv_alv_row_color = gcs-alv-color-lightred.
+  Else.
+    Clear lv_alv_deleted.
+    lv_alv_row_color = gcs-alv-color-default.
+  Endif.
+
+  Loop at lt_selected_rows into ls_selected_row.
+    Read table ot_data into ls_data index ls_selected_row-row_id.
+    If ls_data-alv_deleted <> lv_alv_deleted.
+      Add 1 to ov_row_count.
+    Endif.
+    ls_data-alv_deleted = lv_alv_deleted.
+    ls_data-alv_row_color = lv_alv_row_color.
+    Modify ot_data from ls_data index ls_selected_row-row_id.
+  Endloop.
+
+"Обновить грид и снова выделить строки
+  Call method ir_alv->refresh_table_display
+    exporting
+      is_stable = gcs-alv-stable_refresh.
+
+  Call method ir_alv->set_selected_rows
+    exporting
+      it_row_no = lt_selected_rows.
+
+Endform. "set_unset_deletion_flag
 
 *&-------------------------------------------------------------------*
 *&   Выбрать из таблицы ZPMP006_1 максимальное значение индекса
