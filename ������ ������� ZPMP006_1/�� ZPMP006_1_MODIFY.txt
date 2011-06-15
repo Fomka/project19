@@ -6,28 +6,28 @@ FUNCTION ZPMP006_1_MODIFY .
 *"----------------------------------------------------------------------
 *"*"Локальный интерфейс:
 *"  IMPORTING
-*"     REFERENCE(IT_RECORDS) TYPE  ZPMP006_1_TABLE_TYPE
+*"     REFERENCE(IV_DO_COMMIT) TYPE  BOOLEAN DEFAULT ' '
 *"  EXPORTING
 *"     REFERENCE(O_NUM_OF_PROCESSED) TYPE  I
+*"  CHANGING
+*"     REFERENCE(CT_RECORDS) TYPE  ZPMP006_1_TABLE_TYPE
 *"  EXCEPTIONS
 *"      DB_ERROR
 *"----------------------------------------------------------------------
   Data:
-    lt_records type zpmp006_1_table_type,
     ls_record type zpmp006_1.
 
 "Поставить дату/время/автора изменения
-  Move it_records to lt_records.
-  Loop at lt_records into ls_record.
+  Loop at ct_records into ls_record.
     ls_record-change_date = sy-datum.
     ls_record-change_time = sy-uzeit.
     ls_record-change_name = sy-uname.
-    Modify lt_records from ls_record index sy-tabix.
+    Modify ct_records from ls_record index sy-tabix.
   Endloop.
 
 "Обновить в ZPMP006_1 все переданные записи за один раз
   Update ZPMP006_1
-    from table lt_records.
+    from table ct_records.
   If sy-subrc <> 0.
   "Если хотя бы одна запись не обновилась, то отменить все изменения и выйти
     Rollback work.
@@ -37,6 +37,8 @@ FUNCTION ZPMP006_1_MODIFY .
   Endif.
 
 "Успешно обновлены все записи — подтвердить все изменения
-  Commit work and wait.
+  If iv_do_commit = gc_true.
+    Commit work and wait.
+  Endif.
 
 Endfunction.

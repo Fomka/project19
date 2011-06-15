@@ -6,32 +6,32 @@ FUNCTION ZPMP006_1_INSERT .
 *"----------------------------------------------------------------------
 *"*"Локальный интерфейс:
 *"  IMPORTING
-*"     REFERENCE(IT_RECORDS) TYPE  ZPMP006_1_TABLE_TYPE
+*"     REFERENCE(IV_DO_COMMIT) TYPE  BOOLEAN DEFAULT ' '
 *"  EXPORTING
 *"     REFERENCE(O_NUM_OF_PROCESSED) TYPE  I
+*"  CHANGING
+*"     REFERENCE(CT_RECORDS) TYPE  ZPMP006_1_TABLE_TYPE
 *"  EXCEPTIONS
 *"      DB_ERROR
 *"      NUMS_NOT_EQUAL
 *"----------------------------------------------------------------------
   Data:
-    lt_records type zpmp006_1_table_type,
     ls_record type zpmp006_1,
     lv_num_of_input_records type i, "количество вставляемых строк
     lr_error type ref to CX_ROOT.
 
 "Поставить дату/время/автора изменения
-  Move it_records to lt_records.
-  Loop at lt_records into ls_record.
+  Loop at ct_records into ls_record.
     ls_record-change_date = sy-datum.
     ls_record-change_time = sy-uzeit.
     ls_record-change_name = sy-uname.
-    Modify lt_records from ls_record index sy-tabix.
+    Modify ct_records from ls_record index sy-tabix.
   Endloop.
 
 "Вставить все переданные записи в ZPMP006_1 за один раз
   Try.
     Insert ZPMP006_1
-      from table lt_records.
+      from table ct_records.
   Catch CX_SY_OPEN_SQL_DB into lr_error.
   "Если произошла ошибка, то отменить все изменения и выйти
     Rollback work.
@@ -46,14 +46,16 @@ FUNCTION ZPMP006_1_INSERT .
     o_num_of_processed = sy-dbcnt.
   Endif.
 
-  Describe table lt_records lines lv_num_of_input_records.
-  If lv_num_of_input_records = o_num_of_processed.
-  "Успешно вставлены все записи — подтвердить все изменения
-    Commit work and wait.
-  Else.
+  Describe table ct_records lines lv_num_of_input_records.
+  If lv_num_of_input_records <> o_num_of_processed.
   "Если произошла ошибка, то отменить все изменения и выйти
     Rollback work.
     Raise NUMS_NOT_EQUAL.
+  Endif.
+
+  "Успешно вставлены все записи — подтвердить все изменения
+  If iv_do_commit = gc_true.
+    Commit work and wait.
   Endif.
 
 Endfunction.
