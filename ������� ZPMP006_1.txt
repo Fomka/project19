@@ -25,7 +25,7 @@
 Перечень ПО, входящего в состав АСУТП и СИ
 
 --- Свойства
-Последнее изменение    GUDKOV_TV    14.06.2011
+Последнее изменение    GUDKOV_TV    17.06.2011
 Пакет                  ZPM0                           класс разработки модуля ПМ
 Язык оригинала         RU Русский
 
@@ -42,9 +42,9 @@ UNIQUE_INDEX	ZPMP001_1_INDEX	INT4	10	0	Уникальный номер единицы ПО
 Неключевые поля
 STORT	STORT	CHAR	10	0	Местоположение основного средства
 EQUIPMENT_NAME	ZPMP006_1_EQUIPMENT_NAME	CHAR	48	0	Наименование объекта АСУТП
+TYPE	ZPMP006_1_TYPE	CHAR	48	0	Тип/модель
 MANUFACT_PLACE	ZPMP006_1_MANUFACTURER_PLACE	CHAR	48	0	Разработчик/производитель, местоположение
 MANUFACT_NAME	ZPMP006_1_MANUFACTURER_NAME	CHAR	48	0	Разработчик/производитель, название организации
-TYPE	ZPMP006_1_TYPE	CHAR	48	0	Тип/модель
 PROJECT	ZPMP006_1_PROJECT	CHAR	5	0	Номер проекта
 DATE_START	ZPMP006_1_DATE_START	CHAR	7	0	Дата ввода в эксплуатацию
 SOFTWARE_NAME	ZPMP006_1_SOFTWARE_NAME	CHAR	48	0	Наименование программного обеспечения
@@ -66,9 +66,9 @@ MANDT	MANDT	CLNT	                              	                                
 UNIQUE_INDEX	ZPMP006_1_INDEX	INT4	                              	                                                            		ZPM_INDEX
 STORT	STORT	CHAR	                              	Эксплицитная связь средства поиска с полем	ZSTORT	AP_STAND
 EQUIPMENT_NAME	ZPMP006_1_EQUIPMENT_NAME	CHAR	                              	                                                            		ZPM_CHAR048_CASE
+TYPE	ZPMP006_1_TYPE	CHAR	                              	                                                            		ZPM_CHAR048_CASE
 MANUFACT_PLACE	ZPMP006_1_MANUFACTURER_PLACE	CHAR	                              	                                                            		ZPM_CHAR048_CASE
 MANUFACT_NAME	ZPMP006_1_MANUFACTURER_NAME	CHAR	                              	                                                            		ZPM_CHAR048_CASE
-TYPE	ZPMP006_1_TYPE	CHAR	                              	                                                            		ZPM_CHAR048_CASE
 PROJECT	ZPMP006_1_PROJECT	CHAR	                              	                                                            
 DATE_START	ZPMP006_1_DATE_START	CHAR	                              	                                                            
 SOFTWARE_NAME	ZPMP006_1_SOFTWARE_NAME	CHAR	                              	                                                            		ZPM_CHAR048_CASE
@@ -90,9 +90,9 @@ MANDT	MANDT	CLNT	                              	                              	М
 UNIQUE_INDEX	ZPMP006_1_INDEX	INT4	                              	                              	Уникальный номер единицы ПО
 STORT	STORT	CHAR	                              	                              	Местоположение основного средства
 EQUIPMENT_NAME	ZPMP006_1_EQUIPMENT_NAME	CHAR	                              	                              	Наименование объекта АСУТП
+TYPE	ZPMP006_1_TYPE	CHAR	                              	                              	Тип/модель
 MANUFACT_PLACE	ZPMP006_1_MANUFACTURER_PLACE	CHAR	                              	                              	Разработчик/производитель, местоположение
 MANUFACT_NAME	ZPMP006_1_MANUFACTURER_NAME	CHAR	                              	                              	Разработчик/производитель, название организации
-TYPE	ZPMP006_1_TYPE	CHAR	                              	                              	Тип/модель
 PROJECT	ZPMP006_1_PROJECT	CHAR	                              	                              	Номер проекта
 DATE_START	ZPMP006_1_DATE_START	CHAR	                              	                              	Дата ввода в эксплуатацию
 SOFTWARE_NAME	ZPMP006_1_SOFTWARE_NAME	CHAR	                              	                              	Наименование программного обеспечения
