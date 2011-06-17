@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '38',
+    minor type n length 2 value '39',
   end of gc_version,
   begin of gcs,
   "Коды иконок из вызова метода cl_icon->get_icon для...
@@ -128,9 +128,9 @@ Constants:
       key_unique_index type NAME_FELD value 'UNIQUE_INDEX',
       stort type NAME_FELD value 'STORT',
       equipment_name type NAME_FELD value 'EQUIPMENT_NAME',
+      type type NAME_FELD value 'TYPE',
       manufact_place type NAME_FELD value 'MANUFACT_PLACE',
       manufact_name type NAME_FELD value 'MANUFACT_NAME',
-      type type NAME_FELD value 'TYPE',
       project type NAME_FELD value 'PROJECT',
       date_start type NAME_FELD value 'DATE_START',
       software_name type NAME_FELD value 'SOFTWARE_NAME',
@@ -274,9 +274,9 @@ Selection-screen begin of block b02 with frame.
     Select-options:
       so1_strt for ZPMP006_1-STORT modif id ID1,
       so1_name for ZPMP006_1-EQUIPMENT_NAME,
+      so1_type for ZPMP006_1-TYPE,
       so1_man1 for ZPMP006_1-MANUFACT_PLACE,
       so1_man2 for ZPMP006_1-MANUFACT_NAME,
-      so1_type for ZPMP006_1-TYPE,
       so1_proj for ZPMP006_1-PROJECT,
       so1_date for ZPMP006_1-DATE_START.
   Selection-screen end of block b10.
