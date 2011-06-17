@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '37',
+    minor type n length 2 value '38',
   end of gc_version,
   begin of gcs,
   "Коды иконок из вызова метода cl_icon->get_icon для...
@@ -268,7 +268,7 @@ Selection-screen begin of block b01 with frame.
 Selection-screen end of block b01.
 
 "Блок для CHANGE/VIEW (операции "Изменить", "Просмотреть")
-Selection-screen begin of block b02 with frame title text-004.
+Selection-screen begin of block b02 with frame.
   Selection-screen begin of block b10 with frame title text-010.
     Selection-screen comment 1(40) gv_r_cha modif id ID2.
     Select-options:
