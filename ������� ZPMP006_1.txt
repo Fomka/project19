@@ -45,8 +45,8 @@ EQUNR	EQUNR	CHAR	18	0	Номер единицы оборудования
 TYPE	ZPMP006_1_TYPE	CHAR	48	0	Тип/модель
 SERGE	SERGE	CHAR	30	0	Серийный номер изготовителя
 EQUIPMENT_NAME	ZPMP006_1_EQUIPMENT_NAME	CHAR	48	0	Наименование объекта АСУТП
-MANUFACT_PLACE	ZPMP006_1_MANUFACTURER_PLACE	CHAR	48	0	Разработчик/производитель, местоположение
 MANUFACT_NAME	ZPMP006_1_MANUFACTURER_NAME	CHAR	48	0	Разработчик/производитель, название организации
+MANUFACT_PLACE	ZPMP006_1_MANUFACTURER_PLACE	CHAR	48	0	Разработчик/производитель, местоположение
 PROJECT	ZPMP006_1_PROJECT	CHAR	5	0	Номер проекта
 DATE_START	ZPMP006_1_DATE_START	CHAR	7	0	Дата ввода в эксплуатацию
 SOFTWARE_NAME	ZPMP006_1_SOFTWARE_NAME	CHAR	48	0	Наименование программного обеспечения
@@ -71,8 +71,8 @@ EQUNR	EQUNR	CHAR	                              	Справка по значениям через связь
 TYPE	ZPMP006_1_TYPE	CHAR	                              	                                                            		ZPM_CHAR048_CASE
 SERGE	SERGE	CHAR	                              	                                                            		CHAR30
 EQUIPMENT_NAME	ZPMP006_1_EQUIPMENT_NAME	CHAR	                              	                                                            		ZPM_CHAR048_CASE
-MANUFACT_PLACE	ZPMP006_1_MANUFACTURER_PLACE	CHAR	                              	                                                            		ZPM_CHAR048_CASE
 MANUFACT_NAME	ZPMP006_1_MANUFACTURER_NAME	CHAR	                              	                                                            		ZPM_CHAR048_CASE
+MANUFACT_PLACE	ZPMP006_1_MANUFACTURER_PLACE	CHAR	                              	                                                            		ZPM_CHAR048_CASE
 PROJECT	ZPMP006_1_PROJECT	CHAR	                              	                                                            
 DATE_START	ZPMP006_1_DATE_START	CHAR	                              	                                                            
 SOFTWARE_NAME	ZPMP006_1_SOFTWARE_NAME	CHAR	                              	                                                            		ZPM_CHAR048_CASE
@@ -97,8 +97,8 @@ EQUNR	EQUNR	CHAR	                              	                              	Н
 TYPE	ZPMP006_1_TYPE	CHAR	                              	                              	Тип/модель
 SERGE	SERGE	CHAR	                              	                              	Серийный номер изготовителя
 EQUIPMENT_NAME	ZPMP006_1_EQUIPMENT_NAME	CHAR	                              	                              	Наименование объекта АСУТП
-MANUFACT_PLACE	ZPMP006_1_MANUFACTURER_PLACE	CHAR	                              	                              	Разработчик/производитель, местоположение
 MANUFACT_NAME	ZPMP006_1_MANUFACTURER_NAME	CHAR	                              	                              	Разработчик/производитель, название организации
+MANUFACT_PLACE	ZPMP006_1_MANUFACTURER_PLACE	CHAR	                              	                              	Разработчик/производитель, местоположение
 PROJECT	ZPMP006_1_PROJECT	CHAR	                              	                              	Номер проекта
 DATE_START	ZPMP006_1_DATE_START	CHAR	                              	                              	Дата ввода в эксплуатацию
 SOFTWARE_NAME	ZPMP006_1_SOFTWARE_NAME	CHAR	                              	                              	Наименование программного обеспечения

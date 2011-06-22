@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '41',
+    minor type n length 2 value '42',
   end of gc_version,
   begin of gcs,
   "Коды иконок из вызова метода cl_icon->get_icon для...
@@ -131,8 +131,8 @@ Constants:
       type type NAME_FELD value 'TYPE',
       serge type NAME_FELD value 'SERGE',
       equipment_name type NAME_FELD value 'EQUIPMENT_NAME',
-      manufact_place type NAME_FELD value 'MANUFACT_PLACE',
       manufact_name type NAME_FELD value 'MANUFACT_NAME',
+      manufact_place type NAME_FELD value 'MANUFACT_PLACE',
       project type NAME_FELD value 'PROJECT',
       date_start type NAME_FELD value 'DATE_START',
       software_name type NAME_FELD value 'SOFTWARE_NAME',
@@ -279,8 +279,8 @@ Selection-screen begin of block b02 with frame.
       so1_type for ZPMP006_1-TYPE,
       so1_serg for ZPMP006_1-SERGE,
       so1_name for ZPMP006_1-EQUIPMENT_NAME,
-      so1_man1 for ZPMP006_1-MANUFACT_PLACE,
       so1_man2 for ZPMP006_1-MANUFACT_NAME,
+      so1_man1 for ZPMP006_1-MANUFACT_PLACE,
       so1_proj for ZPMP006_1-PROJECT,
       so1_date for ZPMP006_1-DATE_START.
   Selection-screen end of block b10.
@@ -883,8 +883,8 @@ Form get_data
       and TYPE in so1_type
       and SERGE in so1_serg
       and EQUIPMENT_NAME in so1_name
-      and MANUFACT_PLACE in so1_man1
       and MANUFACT_NAME in so1_man2
+      and MANUFACT_PLACE in so1_man1
       and DATE_START in so1_date
       and PROJECT in so1_proj
       and SOFTWARE_NAME in so2_name
