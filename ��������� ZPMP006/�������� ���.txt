@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '40',
+    minor type n length 2 value '41',
   end of gc_version,
   begin of gcs,
   "Коды иконок из вызова метода cl_icon->get_icon для...
@@ -127,8 +127,10 @@ Constants:
       key_mandt type NAME_FELD value 'MANDT',
       key_unique_index type NAME_FELD value 'UNIQUE_INDEX',
       stort type NAME_FELD value 'STORT',
-      equipment_name type NAME_FELD value 'EQUIPMENT_NAME',
+      equnr type NAME_FELD value 'EQUNR',
       type type NAME_FELD value 'TYPE',
+      serge type NAME_FELD value 'SERGE',
+      equipment_name type NAME_FELD value 'EQUIPMENT_NAME',
       manufact_place type NAME_FELD value 'MANUFACT_PLACE',
       manufact_name type NAME_FELD value 'MANUFACT_NAME',
       project type NAME_FELD value 'PROJECT',
@@ -273,8 +275,10 @@ Selection-screen begin of block b02 with frame.
     Selection-screen comment 1(40) gv_r_cha modif id ID2.
     Select-options:
       so1_strt for ZPMP006_1-STORT modif id ID1,
-      so1_name for ZPMP006_1-EQUIPMENT_NAME,
+      so1_eqnr for ZPMP006_1-EQUNR,
       so1_type for ZPMP006_1-TYPE,
+      so1_serg for ZPMP006_1-SERGE,
+      so1_name for ZPMP006_1-EQUIPMENT_NAME,
       so1_man1 for ZPMP006_1-MANUFACT_PLACE,
       so1_man2 for ZPMP006_1-MANUFACT_NAME,
       so1_proj for ZPMP006_1-PROJECT,
@@ -875,10 +879,12 @@ Form get_data
     from ZPMP006_1
     into corresponding fields of table ot_data
     where STORT in so1_strt
+      and EQUNR in so1_eqnr
+      and TYPE in so1_type
+      and SERGE in so1_serg
       and EQUIPMENT_NAME in so1_name
       and MANUFACT_PLACE in so1_man1
       and MANUFACT_NAME in so1_man2
-      and TYPE in so1_type
       and DATE_START in so1_date
       and PROJECT in so1_proj
       and SOFTWARE_NAME in so2_name
