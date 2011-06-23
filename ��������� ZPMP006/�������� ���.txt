@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '43',
+    minor type n length 2 value '44',
   end of gc_version,
   begin of gcs,
   "Коды иконок из вызова метода cl_icon->get_icon для...
@@ -177,6 +177,9 @@ Class lcl_grid_event_handler definition final.
       handle_double_click
         for event double_click of cl_gui_alv_grid
           importing sender e_column es_row_no,
+      handle_onf4
+        for event onf4 of cl_gui_alv_grid
+          importing sender e_fieldname e_fieldvalue es_row_no er_event_data,
       handle_data_changed
         for event data_changed of cl_gui_alv_grid
           importing sender er_data_changed.
@@ -199,6 +202,7 @@ Types:
       t_fcat type lvc_t_fcat,
       t_sort type lvc_t_sort,
       t_excl type ui_functions,
+      t_f4 type lvc_t_f4,
       s_layo type lvc_s_layo,
       s_vari type disvariant,
       v_save type c,
@@ -269,6 +273,39 @@ Class lcl_grid_event_handler implementation.
                 gt_data.
       When others.
         Message i000(SU) with 'Событие double_click' 'не обрабатывается для этого ALV-Grid''а'.
+    Endcase.
+  Endmethod.
+  Method handle_onf4.
+    Case sender.
+      When gs_alv-01-r_grid.
+        Case e_fieldname.
+          When gcs-data_table-stort. "Местоположение
+            Data:
+              lt_restrictions type ty_t_strings. "Ограничения
+          "Заполнить таблицу с ограничениями
+            Case sy-dynnr.
+              When gcs-screens-data_create-number.
+                Move gt_create_stort_restrictions to lt_restrictions.
+              When gcs-screens-data_change-number.
+                Move gt_change_stort_restrictions to lt_restrictions.
+              When others.
+              "Оставить стандартную помощь по вводу
+                Exit.
+            Endcase.
+          "Показать свою помощь по вводу (с ограничениями)
+            Perform alv_1_show_f4_stort
+              using es_row_no
+                    er_event_data
+                    lt_restrictions
+                    .
+          When gcs-data_table-equnr. "Единица оборудования
+          "Показать свою помощь по вводу
+            Message s000(su) with 'Помощь по вводу ЕО ещё не готова' display like 'E'.
+          When others.
+            Message i000(SU) with 'Событие onf4' 'не обрабатывается для этого поля'.
+        Endcase.
+      When others.
+        Message i000(SU) with 'Событие onf4' 'не обрабатывается для этого ALV-Grid''а'.
     Endcase.
   Endmethod.
   Method handle_data_changed.
@@ -656,6 +693,7 @@ Form exit_screen
       Free: gs_alv-01-r_grid, gs_alv-01-r_cont, gs_alv-01-r_handler,
             gt_data, gt_data_before,
             gs_alv-01-t_fcat, gs_alv-01-t_sort, gs_alv-01-t_excl,
+            gs_alv-01-t_f4,
             gs_alv-01-s_layo, gs_alv-01-s_vari,
             gs_alv-01-v_save.
 
@@ -947,6 +985,7 @@ Form alv_1_prepare
     ot_fieldcat type lvc_t_fcat
     ot_sort type lvc_t_sort
     ot_excl type ui_functions
+    ot_f4 type lvc_t_f4
     os_layout type lvc_s_layo
     os_variant type disvariant
     ov_save_mode type c.
@@ -954,7 +993,8 @@ Form alv_1_prepare
   Data:
     ls_fcat type lvc_s_fcat,
     ls_sort type lvc_s_sort,
-    ls_excl type ui_func.
+    ls_excl type ui_func,
+    ls_f4 type lvc_s_f4.
 
 "Field catalog
   Call function 'LVC_FIELDCATALOG_MERGE'
@@ -989,14 +1029,12 @@ Form alv_1_prepare
       ls_fcat-hotspot = gc_true.
     Endif.
 
-    If ls_fcat-fieldname = gcs-data_table-change_date
-    or ls_fcat-fieldname = gcs-data_table-change_time
-    or ls_fcat-fieldname = gcs-data_table-change_name.
+  "Сделать некоторые столбцы недоступными для изменения содержимого
+    If ls_fcat-fieldname = gcs-data_table-stort or "Ввод через помощь по вводу
+       ls_fcat-fieldname = gcs-data_table-change_date or
+       ls_fcat-fieldname = gcs-data_table-change_time or
+       ls_fcat-fieldname = gcs-data_table-change_name.
       ls_fcat-edit = gc_false.
-    Endif.
-
-    If ls_fcat-fieldname = gcs-data_table-stort.
-      ls_fcat-f4availabl = gc_true.
     Endif.
 
     Modify ot_fieldcat from ls_fcat.
@@ -1031,6 +1069,15 @@ Form alv_1_prepare
   "Оставить кнопки, задать что можно сохранять внешний вид любыми способами
     ov_save_mode = gcs-alv-variant_save_modes-all.
   Endif.
+
+"Помощь по вводу (клавиша F4)
+  ls_f4-register = gc_true.
+  ls_f4-getbefore = gc_false.
+  ls_f4-chngeafter = gc_false.
+  ls_f4-fieldname = gcs-data_table-stort. "Местоположение
+  Insert ls_f4 into table ot_f4. "Insert вместо Append т.к. таблица — sorted
+  ls_f4-fieldname = gcs-data_table-equnr. "Единица оборудования
+  Insert ls_f4 into table ot_f4. "Insert вместо Append т.к. таблица — sorted
 
 "Layout
   os_layout-cwidth_opt = gc_true.
@@ -1115,6 +1162,7 @@ Form alv_1_display
         os_alv-t_fcat
         os_alv-t_sort
         os_alv-t_excl
+        os_alv-t_f4
         os_alv-s_layo
         os_alv-s_vari
         os_alv-v_save.
@@ -1124,7 +1172,12 @@ Form alv_1_display
     Set handler os_alv-r_handler->handle_user_command for os_alv-r_grid.
     Set handler os_alv-r_handler->handle_hotspot_click for os_alv-r_grid.
     Set handler os_alv-r_handler->handle_double_click for os_alv-r_grid.
+    Set handler os_alv-r_handler->handle_onf4 for os_alv-r_grid.
     Set handler os_alv-r_handler->handle_data_changed for os_alv-r_grid.
+
+    Call method os_alv-r_grid->register_f4_for_fields
+      exporting
+        it_f4                         = os_alv-t_f4.
 
     Call method os_alv-r_grid->set_table_for_first_display
       exporting
@@ -1409,14 +1462,13 @@ Form alv_1_handle_data_changed
         lv_stort type ty_s_data-stort,
         lv_stort_is_ok type boolean.
 
-"Подставить уникальный индекс
+"Подставить мандант и уникальный индекс
   Perform get_max_index changing lv_index.
   Assign ir_data_changed->mp_mod_rows->* to <ft_mod_rows>.
   Loop at <ft_mod_rows> assigning <fs_mod_row> where unique_index = 0.
     Add 1 to lv_index.
     <fs_mod_row>-unique_index = lv_index.
     <fs_mod_row>-mandt = sy-mandt.
-    <fs_mod_row>-stort = '38'.
   Endloop.
 
 "Проверить правильность введённого местоположения
@@ -1444,15 +1496,9 @@ Form alv_1_handle_data_changed
           i_msgty = 'E'
           i_msgv1 = 'Местоположение'
           i_msgv2 = lv_stort
-          i_msgv3 = 'сброшено на 13'
+          i_msgv3 = 'не существует'
           i_fieldname = ls_mod_cell-fieldname
           i_row_id = ls_mod_cell-row_id.
-
-      Call method ir_data_changed->modify_cell
-        exporting
-          i_row_id      = ls_mod_cell-row_id
-          i_fieldname   = ls_mod_cell-fieldname
-          i_value       = '38'.
 
     Endif.
 
@@ -1715,3 +1761,110 @@ Form alv_1_handle_hotspot_click
           is_row_no
           it_data.
 Endform. "alv_1_handle_hotspot_click
+
+*&-------------------------------------------------------------------*
+*&   Показать свою помощь по вводу (клавиша F4) для местоположения (STORT)
+*& с ограничениями
+*&-------------------------------------------------------------------*
+Form alv_1_show_f4_stort
+  using
+    is_row_no type lvc_s_roid
+    ir_event_data type ref to cl_alv_event_data
+    it_restriction_strings type ty_t_strings.
+
+  Types:
+    begin of ty_s_restriction,
+      stand type T499S-STAND,
+    end of ty_s_restriction,
+    ty_t_restrictions type standard table of ty_s_restriction.
+
+  Constants:
+  "Источник данных для помощи по вводу
+    lc_tabname type tabname value 'T499S', "Изменил? Ищи from T499S, of T499S
+    lc_field_1 type fieldname value 'STAND', "Поле со значением местоположения
+    lc_field_2 type fieldname value 'KTEXT'. "Поле с поясняющим текстом
+
+  Data:
+    ls_restriction_string type ty_s_string,
+    lt_restrictions type ty_t_restrictions,
+    ls_restriction type ty_s_restriction,
+    lt_data_source type table of T499S,
+    ls_data_source like line of lt_data_source,
+    ls_value type seahlpres,
+    lt_values type table of seahlpres,
+    ls_field  type dfies,
+    lt_fields type table of dfies,
+    lt_selected_sh_rows type standard table of ddshretval,
+    ls_selected_sh_row type ddshretval,
+    ls_modi type lvc_s_modi.
+
+  Field-symbols:
+    <ft_modi> type lvc_t_modi.
+
+"Отказаться от стандартной помощи по вводу
+  ir_event_data->m_event_handled = gc_true.
+
+"Выбрать данные для помощи по вводу с учётом ограничений
+  Loop at it_restriction_strings into ls_restriction_string.
+    ls_restriction-stand = ls_restriction_string-string.
+    Append ls_restriction to lt_restrictions.
+  Endloop.
+  Select *
+    into table lt_data_source
+    from T499S
+    for all entries in lt_restrictions "Если нет ограничений — выбрать всё
+      where STAND = lt_restrictions-stand.
+
+"Перевести выбранные данные в формат "ячейка-за-ячейкой" (cell-by-cell)
+  Loop at lt_data_source into ls_data_source.
+    ls_value-string = ls_data_source-stand.
+    Append ls_value to lt_values.
+    ls_value-string = ls_data_source-ktext.
+    Append ls_value to lt_values.
+  Endloop.
+
+"Задать набор столбцов для отображения выбранных данных
+  ls_field-tabname   = lc_tabname.
+  ls_field-fieldname = lc_field_1.
+  Append ls_field to lt_fields.
+
+  ls_field-tabname   = lc_tabname.
+  ls_field-fieldname = lc_field_2.
+  Append ls_field to lt_fields.
+
+"Показать помощь по вводу во всплывающем окне
+  Call function 'F4IF_INT_TABLE_VALUE_REQUEST'
+    exporting
+      retfield               = lc_field_1
+      multiple_choice        = gc_false
+      display                = gc_false
+    tables
+      value_tab              = lt_values
+      field_tab              = lt_fields
+      return_tab             = lt_selected_sh_rows
+    exceptions
+      parameter_error        = 1
+      no_values_found        = 2
+      others                 = 3
+            .
+  If sy-subrc <> 0.
+  "Ошибка, показать сообщение и выйти
+    Message id sy-msgid type sy-msgty number sy-msgno
+        with sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    Exit.
+  Endif.
+
+"Передать выбранное значение в ALV-грид
+  Read table lt_selected_sh_rows into ls_selected_sh_row index 1.
+  If sy-subrc <> 0.
+  "Нет ни одной выбранной строки, выйти из подпрограммы
+    Exit.
+  Endif.
+  ls_modi-value = ls_selected_sh_row-fieldval.
+  ls_modi-fieldname = gcs-data_table-stort.
+  ls_modi-row_id = is_row_no-row_id.
+  Assign ir_event_data->m_data->* to <ft_modi>.
+  Append ls_modi to <ft_modi>. "Добавить к изменённым ячейкам ALV-грида
+  Unassign <ft_modi>.
+
+Endform. "alv_1_show_f4_stort
