@@ -31,7 +31,7 @@ Constants:
   gc_false type boolean value ' ',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '44',
+    minor type n length 2 value '45',
   end of gc_version,
   begin of gcs,
   "Коды иконок из вызова метода cl_icon->get_icon для...
@@ -1232,6 +1232,7 @@ Form save_data
     ot_data type ty_t_data.
 
   Data:
+    lv_data_is_valid type c length 1,
     lt_del_rows type ZPMP006_1_TABLE_TYPE, "строки, которые были удалены после вызова
     lt_ins_rows type ty_t_data, "-//- вставлены
     lt_mod_rows type ty_t_data, "-//- изменены
@@ -1248,11 +1249,13 @@ Form save_data
 
 "Подтянуть текущее состояние ячеек ALV-грида в связанную с ним таблицу ot_data
   Call method is_alv-r_grid->check_changed_data
-*    importing
-*      e_valid   = "данные не проверяются на правильность ввода
-*    changing
-*      c_refresh = 'X'
+    importing
+      e_valid   = lv_data_is_valid
       .
+  If lv_data_is_valid is initial.
+    Message e000(su) with 'Ошибка в данных, сохранение не выполнено'.
+    Exit.
+  Endif.
 
 "Найти отличия между тем, что было в гриде до и после вызова check_changed_data
   "Обработать удалённые строки
