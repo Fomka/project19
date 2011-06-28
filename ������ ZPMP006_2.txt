@@ -1,0 +1,51 @@
+Общие свойства:
+
+Имя ракурса        ZPMP006_2
+Краткое описание   ЕО: местоположение и текст
+Тип ракурса        Ракурс базы данных
+Первичная таблица  EQUI
+Статус ведения     Только считывание
+ВеденТабл          Просмотр/ведение разрешены с ограничение
+
+
+БазиснТаблицы:
+
+Базисная таблица
+
+EQUI
+EQUZ
+EQKT
+ILOA
+
+
+Поля:
+
+Поле ракурса   Таблица Поле  Клч ЭлДанных Мод
+
+MANDT          EQUZ    MANDT  +  MANDT
+DATBI          EQUZ    DATBI  +  DATBI
+EQUNR          EQUZ    EQUNR  +  EQUNR
+SPRAS          EQKT    SPRAS  +  SPRAS
+EQUIPMENT_NAME EQKT    EQKTX  +  KTX01
+EQLFN          EQUZ    EQLFN  +  EQLFN
+STORT          ILOA    STORT     PMLOC
+TYPE           EQUI    TYPBZ     TYPBZ
+SERGE          EQUI    SERGE     SERGE
+
+Условия соедин.:
+
+Таблица Поле  Оператор Таблица Поле
+
+EQUI    MANDT EQ       EQUZ    MANDT
+EQUI    EQUNR EQ       EQUZ    EQUNR
+EQUZ    MANDT EQ       EQKT    MANDT
+EQUZ    EQUNR EQ       EQKT    EQUNR
+EQUZ    MANDT EQ       ILOA    MANDT
+EQUZ    ILOAN EQ       ILOA    ILOAN
+
+
+Условия выбора:
+
+Таблица Поле  Оператор Константа  И/ИЛИ
+
+EQUZ    DATBI EQ       '99991231'
