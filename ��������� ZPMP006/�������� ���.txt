@@ -32,7 +32,7 @@ Constants:
   gc_asterisk type c length 1 value '*',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '46',
+    minor type n length 2 value '47',
   end of gc_version,
   begin of gcs,
   "Коды иконок из вызова метода cl_icon->get_icon для...
@@ -1482,7 +1482,9 @@ Form alv_1_handle_data_changed
         lt_mod_cells type lvc_t_modi,
         ls_mod_cell type lvc_s_modi,
         lv_stort type ty_s_data-stort,
-        lv_stort_is_ok type boolean.
+        lv_stort_is_ok type boolean,
+        lv_equnr type ty_s_data-equnr,
+        lv_equnr_is_ok type boolean.
 
 "Подставить мандант и уникальный индекс
   Perform get_max_index changing lv_index.
@@ -1519,6 +1521,43 @@ Form alv_1_handle_data_changed
           i_msgv1 = 'Местоположение'
           i_msgv2 = lv_stort
           i_msgv3 = 'не существует'
+          i_fieldname = ls_mod_cell-fieldname
+          i_row_id = ls_mod_cell-row_id.
+
+    Endif.
+
+  Endloop.
+
+"Проверить правильность введённой единицы оборудования
+  Loop at lt_mod_cells
+    into ls_mod_cell
+    where fieldname = gcs-data_table-equnr.
+
+    Call method ir_data_changed->get_cell_value
+      exporting
+        i_row_id    = ls_mod_cell-row_id
+        i_fieldname = gcs-data_table-stort
+      importing
+        e_value     = lv_stort.
+
+    Call method ir_data_changed->get_cell_value
+      exporting
+        i_row_id    = ls_mod_cell-row_id
+        i_fieldname = gcs-data_table-equnr
+      importing
+        e_value     = lv_equnr.
+
+    Perform check_equnr_is_ok using lv_stort lv_equnr changing lv_equnr_is_ok.
+
+    If lv_equnr_is_ok <> gc_true.
+      Call method ir_data_changed->add_protocol_entry
+        exporting
+          i_msgid = 'SU'
+          i_msgno = '000'
+          i_msgty = 'E'
+          i_msgv1 = 'Единица оборудования'
+          i_msgv2 = lv_equnr
+          i_msgv3 = 'не прошла проверку'
           i_fieldname = ls_mod_cell-fieldname
           i_row_id = ls_mod_cell-row_id.
 
@@ -1735,6 +1774,39 @@ Form check_stort_is_ok
     ov_is_ok = gc_false.
   Endif.
 Endform. "check_stort_is_ok
+
+*&-------------------------------------------------------------------*
+*&   Проверить соответствие между местоположением и единицей оборудования
+*&-------------------------------------------------------------------*
+Form check_equnr_is_ok
+  using
+    iv_stort type T499S-STAND "проверочное местоположение
+    iv_equnr type EQUI-EQUNR "проверяемая единица оборудования
+  changing
+    ov_is_ok type boolean.
+
+  Data:
+    lv_max_eqlfn type ZPMP006_2-EQLFN,
+    lv_stort like iv_stort.
+
+"Выбрать актуальное (последнее) местоположение у ЕО
+  Select max( EQLFN )
+    into lv_max_eqlfn "если в один день было несколько записей, взять последнюю
+    from ZPMP006_2
+    where EQUNR = iv_equnr.
+  Select single STORT "#EC * Ключ. полей хватает (в ракурсе DATBI = '9991231')
+    into lv_stort
+    from ZPMP006_2
+    where EQUNR = iv_equnr
+      and EQLFN = lv_max_eqlfn.
+  If sy-subrc = 0 and
+     lv_stort = iv_stort.
+  "Актуальное местоположение в единице оборудования совпадает с проверочным
+    ov_is_ok = gc_true.
+  Else.
+    ov_is_ok = gc_false.
+  Endif.
+Endform. "check_equnr_is_ok
 
 *&-------------------------------------------------------------------*
 *&   Обработать двойной щелчок по полю
