@@ -29,9 +29,10 @@ Report  ZPMP006.
 Constants:
   gc_true type boolean value 'X',
   gc_false type boolean value ' ',
+  gc_asterisk type c length 1 value '*',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '45',
+    minor type n length 2 value '46',
   end of gc_version,
   begin of gcs,
   "Коды иконок из вызова метода cl_icon->get_icon для...
@@ -39,6 +40,18 @@ Constants:
     icon_undelete type iconname value '@F_UNDO@', "... 'ICON_SYSTEM_UNDO'
     icon_excel type iconname value '@X__XLS@', "... 'ICON_XLS'
     werks type T499S-WERKS value '1000', "номер завода, для проверки местоположений
+  "Select-options
+    begin of so,
+      begin of sign,
+        include type c length 1 value 'I',
+        exclude type c length 1 value 'E',
+      end of sign,
+      begin of option,
+        equals type c length 2 value 'EQ',
+        not_equals type c length 2 value 'NE',
+        contains_pattern type c length 2 value 'CP',
+      end of option,
+    end of so,
     begin of permission_string,
       create type ZPM_USR-OPERATION value 'CREATE',
       change type ZPM_USR-OPERATION value 'CHANGE',
@@ -299,8 +312,14 @@ Class lcl_grid_event_handler implementation.
                     lt_restrictions
                     .
           When gcs-data_table-equnr. "Единица оборудования
+            Data: ls_data_row type ty_s_data.
+            Read table gt_data into ls_data_row index es_row_no-row_id.
           "Показать свою помощь по вводу
-            Message s000(su) with 'Помощь по вводу ЕО ещё не готова' display like 'E'.
+            Perform alv_1_show_f4_equnr
+              using ls_data_row
+                    es_row_no
+                    er_event_data
+                    .
           When others.
             Message i000(SU) with 'Событие onf4' 'не обрабатывается для этого поля'.
         Endcase.
@@ -802,7 +821,7 @@ Form show_change_stort_restricted
   Clear gv_r_cha.
 
   ls_so1_strt-sign = 'I'.
-  ls_so1_strt-option = 'EQ'.
+  ls_so1_strt-option = gcs-so-option-equals.
 
   Loop at it_restrictions into ls_restriction.
     ls_so1_strt-low = ls_restriction-string.
@@ -1864,10 +1883,129 @@ Form alv_1_show_f4_stort
     Exit.
   Endif.
   ls_modi-value = ls_selected_sh_row-fieldval.
-  ls_modi-fieldname = gcs-data_table-stort.
+  ls_modi-fieldname = gcs-data_table-stort. "В поле "Местоположение"
   ls_modi-row_id = is_row_no-row_id.
   Assign ir_event_data->m_data->* to <ft_modi>.
   Append ls_modi to <ft_modi>. "Добавить к изменённым ячейкам ALV-грида
   Unassign <ft_modi>.
 
 Endform. "alv_1_show_f4_stort
+
+*&-------------------------------------------------------------------*
+*&   Показать свою помощь по вводу (клавиша F4) для единицы оборудования (ЕО,
+*& EQUNR) с учётом уже введённых данных в поля столбцов "Местоположение",
+*& "Тип/модель", "Наименование", "Серийный номер".
+*&-------------------------------------------------------------------*
+Form alv_1_show_f4_equnr
+  using
+    is_data_row type ty_s_data
+    is_row_no type lvc_s_roid
+    ir_event_data type ref to cl_alv_event_data.
+
+  Constants:
+  "Источник данных для помощи по вводу
+    lc_shlpname type shlpname value 'ZPMP006_1'.
+
+  Data:
+    ls_shlp type shlp_descr,
+    ls_interface type ddshiface,
+    ls_selopt type ddshselopt,
+    lv_rc type sy-subrc,
+    lt_selected_sh_rows type standard table of ddshretval,
+    ls_selected_sh_row type ddshretval,
+    ls_modi type lvc_s_modi.
+
+  Field-symbols:
+    <ft_modi> type lvc_t_modi.
+
+"Отказаться от стандартной помощи по вводу
+  ir_event_data->m_event_handled = gc_true.
+
+"Получить описание средства поиска СП
+  Call function 'F4IF_GET_SHLP_DESCR'
+       exporting
+            shlpname = lc_shlpname
+       importing
+            shlp     = ls_shlp.
+
+"Дополнить описание СП: задать возвращаемые из СП поля
+  Loop at ls_shlp-interface into ls_interface
+    where shlpfield <> gcs-data_table-stort.
+    "Все, кроме поля "Местоположение
+      ls_interface-valfield = ls_interface-shlpfield.
+      Modify ls_shlp-interface from ls_interface index sy-tabix.
+  Endloop.
+
+"Дополнить описание СП: ввести начальные ограничения в ls_shlp-selopt
+  ls_selopt-shlpname = lc_shlpname.
+  ls_selopt-sign = gcs-so-sign-include.
+  ls_selopt-option = gcs-so-option-equals.
+  If is_data_row-stort is not initial. "Местоположение
+    ls_selopt-shlpfield = gcs-data_table-stort.
+    ls_selopt-low = is_data_row-stort.
+    Append ls_selopt to ls_shlp-selopt.
+  Endif.
+
+  If is_data_row-type is not initial. "Тип/модель
+    ls_selopt-shlpfield = gcs-data_table-type.
+    ls_selopt-option = gcs-so-option-contains_pattern.
+    Concatenate gc_asterisk is_data_row-type gc_asterisk
+      into ls_selopt-low.
+    Append ls_selopt to ls_shlp-selopt.
+  Endif.
+
+  If is_data_row-serge is not initial. "Серийный номер
+    ls_selopt-shlpfield = gcs-data_table-serge.
+    ls_selopt-option = gcs-so-option-contains_pattern.
+    Concatenate gc_asterisk is_data_row-serge gc_asterisk
+      into ls_selopt-low.
+    Append ls_selopt to ls_shlp-selopt.
+  Endif.
+
+  If is_data_row-equipment_name is not initial. "Наименование
+    ls_selopt-shlpfield = gcs-data_table-equipment_name.
+    ls_selopt-option = gcs-so-option-contains_pattern.
+    Concatenate gc_asterisk is_data_row-equipment_name gc_asterisk
+      into ls_selopt-low.
+    Append ls_selopt to ls_shlp-selopt.
+  Endif.
+
+
+"Вызвать дополненную помощь по вводу (с заданными начальными ограничениями)
+  Call function 'F4IF_START_VALUE_REQUEST'
+       exporting
+            shlp          = ls_shlp
+       importing
+            rc            = lv_rc
+       tables
+            return_values = lt_selected_sh_rows.
+
+  Case lv_rc.
+    When 0.
+    "Выбранное значение находится в таблице lt_selected_sh_rows
+    When 4.
+      Message s000(su) with 'Значения не найдены'.
+      Exit.
+    When 8.
+      Message s000(su) with 'Ничего не выбрано'.
+      Exit.
+    When others.
+      Message s000(su) with 'Ошибка номер'
+                            lv_rc
+                            'при вызове ФМ F4IF_START_VALUE_REQUEST,'
+                            'сообщите разработчикам'
+                       display like 'E'.
+      Exit. "Выйти из подпрограммы
+  Endcase.
+
+"Передать поля выбранной строки из СП в ALV-грид
+  Assign ir_event_data->m_data->* to <ft_modi>.
+  Loop at lt_selected_sh_rows into ls_selected_sh_row.
+    ls_modi-value = ls_selected_sh_row-fieldval.
+    ls_modi-fieldname = ls_selected_sh_row-fieldname.
+    ls_modi-row_id = is_row_no-row_id.
+    Append ls_modi to <ft_modi>. "Добавить поле к изменённым ячейкам ALV-грида
+  Endloop.
+  Unassign <ft_modi>.
+
+Endform. "alv_1_show_f4_equnr
