@@ -32,7 +32,7 @@ Constants:
   gc_asterisk type c length 1 value '*',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '47',
+    minor type n length 2 value '48',
   end of gc_version,
   begin of gcs,
   "Коды иконок из вызова метода cl_icon->get_icon для...
@@ -1660,7 +1660,7 @@ Form alv_1_handle_user_command
       Endif.
 
     When gcs-commands-alv-excel.
-      Message i000(su) with 'Команда' i_ucomm 'пока не обрабатывается'.
+      Perform export_to_excel using gt_data.
 
     When others.
       Message i000(su) with 'Команда' i_ucomm 'пока не обрабатывается'.
@@ -2082,3 +2082,153 @@ Form alv_1_show_f4_equnr
   Unassign <ft_modi>.
 
 Endform. "alv_1_show_f4_equnr
+
+*&-------------------------------------------------------------------*
+*& Выгрузка в Excel через www-шаблон ZPMT006
+*&-------------------------------------------------------------------*
+Form export_to_excel using it_data like gt_data.
+
+  Data:
+    ls_data like line of it_data.
+
+  Types: "Для вывода в Excel
+    ty_s_excel type ZWWW_VALUES,
+    ty_t_excel type standard table of ty_s_excel,
+    begin of ty_s_excel_row,
+      col00 type i,
+      col01 like ls_data-equipment_name,
+      col02 like ls_data-type,
+      col03 type c length 97, "1+48x2 (manufact. name & place)
+      col04 like ls_data-project,
+      col05 like ls_data-date_start,
+      col06 like ls_data-software_name,
+      col07 like ls_data-version_original,
+      col08 like ls_data-version_mod,
+      col09 like ls_data-dev_environment,
+      col10 like ls_data-mod_cause,
+      col11 like ls_data-mod_worker,
+      col12 like ls_data-mod_date,
+      col13 like ls_data-num_of_copies,
+      col14 like ls_data-commentary,
+    end of ty_s_excel_row.
+
+  Constants: "Для вывода в Excel
+    lc_file_name type RLGRAP-FILENAME value 'Перечень ПО АСУТП.xls',"#EC NOTEXT
+    lc_template_name type WWWDATATAB-OBJID value 'ZPMT006', "смотри транз. SMW0
+    lc_list_name type ZWWW_VALUES-var_name value 'List_1',
+    lc_delete_name type ZWWW_VALUES-var_name value 'delete_it',
+
+    begin of lc_t1,
+      begin of row1, "row 1 = строка типа 1
+        name  type ZWWW_VALUES-var_name value 'T1_R',
+        colxx_mask type ZWWW_VALUES-var_name value '[*]',
+      end of row1,
+    end of lc_t1.
+
+  Data: "Для вывода в Excel
+    lv_file_name type RLGRAP-FILENAME value lc_file_name,
+    lv_file_path like lv_file_name,
+    lt_excel type ty_t_excel, "список команд для заполнения шаблона
+    ls_excel type ty_s_excel, "отдельная команда для заполнения шаблона
+    lv_workarea_name like lc_list_name, "Название рабочей области (строка в шаблоне)
+    lv_row_num type ZWWW_VALUES-var_num, "Номер строки, вставляемой в рабочую область
+    ls_t1_row type ty_s_excel_row,
+    lv_col_num type n length 2,
+    lv_col_text type ZWWW_VALUES-find_text.
+
+  Field-symbols:
+    <fv_col_xx> type any. "Содержимое ячейки XX для вставки в столбец XX
+
+"Сформировать название диапазона, куда будут вставляться строки
+  "В строку типа 1 первой таблицы
+  Concatenate lc_list_name lc_t1-row1-name
+    into lv_workarea_name
+    separated by '!'.
+
+"Сформировать имя файла, в который будут выгружаться данные
+  Call function 'TMP_GUI_GET_TEMPPATH'
+    importing
+      temppath       = lv_file_path
+    exceptions
+      failed         = 1
+      others         = 2
+            .
+  If sy-subrc <> 0.
+    Clear lv_file_name. "Название будет задано ФМ ZWWW_OPENFORM
+  Else.
+    Concatenate lv_file_path lc_file_name
+      into lv_file_name
+      separated by '/'.
+  Endif.
+
+"Добавить в список команд вставку данных
+  Loop at it_data into ls_data.
+  "Подготовить строку с данными
+    Add 1 to lv_row_num. "Номер строки
+    ls_t1_row-col00 = lv_row_num. "Первый столбец таблицы 1 = номер строки
+    ls_t1_row-col01 = ls_data-equipment_name.
+    ls_t1_row-col02 = ls_data-type.
+    Concatenate ls_data-manufact_name ls_data-manufact_place
+      into ls_t1_row-col03
+      separated by space.
+    ls_t1_row-col04 = ls_data-project.
+    ls_t1_row-col05 = ls_data-date_start.
+    ls_t1_row-col06 = ls_data-software_name.
+    ls_t1_row-col07 = ls_data-version_original.
+    ls_t1_row-col08 = ls_data-version_mod.
+    ls_t1_row-col09 = ls_data-dev_environment.
+    ls_t1_row-col10 = ls_data-mod_cause.
+    ls_t1_row-col11 = ls_data-mod_worker.
+    ls_t1_row-col12 = ls_data-mod_date.
+    ls_t1_row-col13 = ls_data-num_of_copies.
+    ls_t1_row-col14 = ls_data-commentary.
+
+  "Вставить ячейки из подготовленной строки с данными
+    Do 15 times. "Пройти по всем ячейкам строки
+    "Задать столбец в шаблоне Excel ([01], .. [14])
+      lv_col_num = sy-index - 1. "От 00 до 14
+      lv_col_text = lc_t1-row1-colxx_mask.
+      Replace '*' in lv_col_text with lv_col_num.
+    "Взять значение из нужной ячейки подготовленной строки ls_t1_row
+      Assign component sy-index of structure ls_t1_row to <fv_col_xx>.
+    "Заполнить ячейку заданного столбца — вставить команду в список команд
+      ls_excel-var_name = lv_workarea_name.
+      ls_excel-var_num  = lv_row_num.
+      ls_excel-find_text = lv_col_text.
+      ls_excel-value = <fv_col_xx>.
+      Append ls_excel to lt_excel.
+
+      Unassign <fv_col_xx>.
+    Enddo.
+  Endloop.
+
+"Добавить в список команд удаление строки, оставленной в шаблоне
+  Clear ls_excel.
+  ls_excel-var_name = lc_delete_name.
+  ls_excel-val_type = 'D'.
+  Append ls_excel to lt_excel.
+
+"Вызвать функциональный модуль — выгрузка в Excel
+  Call function 'ZWWW_OPENFORM'
+    exporting
+      FORM_NAME               = lc_template_name
+      FILE_NAME               = lv_file_name
+      PRINTDIALOG             = space
+      PROTECT                 = space
+*     OPTIMIZE                = 100
+*     DEBUG_MODE              = 'X'
+*     DECIMAL_SEPARATOR       = '.'
+*     CLOSE_FORM              = ''
+*     DELETE_FILE             = 'X'
+    tables
+      IT_VALUES               = lt_excel
+    exceptions
+      printcancel             = 1
+      others                  = 2
+            .
+  If sy-subrc <> 0.
+    Message id SY-MSGID type SY-MSGTY number SY-MSGNO
+            with SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+  Endif.
+
+Endform. "export_to_excel
