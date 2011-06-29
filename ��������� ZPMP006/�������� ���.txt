@@ -32,7 +32,7 @@ Constants:
   gc_asterisk type c length 1 value '*',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '48',
+    minor type n length 2 value '49',
   end of gc_version,
   begin of gcs,
   "Коды иконок из вызова метода cl_icon->get_icon для...
@@ -1355,36 +1355,27 @@ Form save_data
                         ls_num_of-inserted
                         ls_num_of-modified.
 
-"Собрать таблицы ins, mod в ot_data — подтянуть содержимое полей дата,
-"время и автор изменения, которое было заполнено функ. модулями ZPMP006_1_*.
-  Do 2 times.
-  "Обработать 2 таблицы (mod, ins)
-    Refresh lt_data_source.
-    Case sy-index.
-      When 1.
-        Move lt_mod_rows to lt_data_source.
-      When others.
-        Move lt_ins_rows to lt_data_source.
-    Endcase.
-  "Таблица lt_data_source содержит очередную таблицу — mod или ins
-    Loop at lt_data_source into ls_data_source.
-      Read table ot_data into ls_data_destination
-        with key unique_index = ls_data_source-unique_index.
-      If sy-subrc <> 0.
-        Message w000(su)
-          with 'Не удалось обработать запись с индексом'
-               ls_data_source-unique_index
-               ', чтобы отобразить данные о последнем изменении'
-               'на экране. Сообщите разработчикам по т. 6-04-42'.
-        Continue. "Перейти к следующей записи в lt_data_source
-      Endif.
-    "Найдена запись, в которую нужно подтянуть данные о последнем изменении
-      ls_data_destination-change_date = ls_data_source-change_date.
-      ls_data_destination-change_time = ls_data_source-change_time.
-      ls_data_destination-change_name = ls_data_source-change_name.
-      Modify ot_data from ls_data_destination index sy-tabix.
-    Endloop.
-  Enddo.
+"Обновить данные об изменениях в гриде — подтянуть содержимое полей дата,
+"время и автор изменения, которое было заполнено ФМ ZPMP006_1_MODIFY.
+  Refresh lt_data_source.
+  Move lt_mod_rows to lt_data_source.
+  Loop at lt_data_source into ls_data_source.
+    Read table ot_data into ls_data_destination
+      with key unique_index = ls_data_source-unique_index.
+    If sy-subrc <> 0.
+      Message w000(su)
+        with 'Не удалось обработать запись с индексом'
+             ls_data_source-unique_index
+             ', чтобы отобразить данные о последнем изменении'
+             'на экране. Сообщите разработчикам по т. 6-04-42'.
+      Continue. "Перейти к следующей записи в lt_data_source
+    Endif.
+  "Найдена запись, в которую нужно подтянуть данные о последнем изменении
+    ls_data_destination-change_date = ls_data_source-change_date.
+    ls_data_destination-change_time = ls_data_source-change_time.
+    ls_data_destination-change_name = ls_data_source-change_name.
+    Modify ot_data from ls_data_destination index sy-tabix.
+  Endloop.
 
 "Удалить записи, которые были помечены, как удалённые
   Delete ot_data where alv_deleted = gc_true.
@@ -1469,32 +1460,22 @@ Form get_rows_with_mod_content
 Endform. "get_rows_with_mod_content
 
 *&-------------------------------------------------------------------*
-*&   Подставить уникальный индекс в первую ячейку добавленных строк.
-*& Проверить корректность введённых данных
+*&   Проверить корректность введённых в список данных.
+*& Введённое местоположение — существует.
+*& Введённая единица оборудования — имеет актуальное местоположение, которое
+*& совпадает с местоположением в соседней ячейке той же строки списка.
 *&-------------------------------------------------------------------*
 Form alv_1_handle_data_changed
   using
     ir_data_changed type ref to cl_alv_changed_data_protocol.
 
-  Field-symbols:
-    <ft_mod_rows> type ty_t_data,
-    <fs_mod_row> type ty_s_data.
-  Data: lv_index type ty_s_data-unique_index,
+  Data:
         lt_mod_cells type lvc_t_modi,
         ls_mod_cell type lvc_s_modi,
         lv_stort type ty_s_data-stort,
         lv_stort_is_ok type boolean,
         lv_equnr type ty_s_data-equnr,
         lv_equnr_is_ok type boolean.
-
-"Подставить мандант и уникальный индекс
-  Perform get_max_index changing lv_index.
-  Assign ir_data_changed->mp_mod_rows->* to <ft_mod_rows>.
-  Loop at <ft_mod_rows> assigning <fs_mod_row> where unique_index = 0.
-    Add 1 to lv_index.
-    <fs_mod_row>-unique_index = lv_index.
-    <fs_mod_row>-mandt = sy-mandt.
-  Endloop.
 
 "Проверить правильность введённого местоположения
   Move ir_data_changed->mt_mod_cells to lt_mod_cells.
@@ -1736,22 +1717,6 @@ Form set_unset_deletion_flag
 Endform. "set_unset_deletion_flag
 
 *&-------------------------------------------------------------------*
-*&   Выбрать из таблицы ZPMP006_1 максимальное значение индекса
-*&-------------------------------------------------------------------*
-Form get_max_index
-  changing
-    ov_max_index type ZPMP006_1-UNIQUE_INDEX.
-
-  Select max( UNIQUE_INDEX )
-    into ov_max_index
-    from ZPMP006_1.
-  If sy-subrc <> 0.
-    Message e000(su) with 'Ошибка в процедуре'
-                          'get_max_index'.
-  Endif.
-Endform. "get_max_index
-
-*&-------------------------------------------------------------------*
 *&   Проверить существование местоположения
 *&-------------------------------------------------------------------*
 Form check_stort_is_ok
@@ -1777,7 +1742,8 @@ Form check_stort_is_ok
 Endform. "check_stort_is_ok
 
 *&-------------------------------------------------------------------*
-*&   Проверить соответствие между местоположением и единицей оборудования
+*&   Проверить соответствие между местоположением и единицей оборудования:
+*& актуальное местоположение единицы должно совпадать с проверочным.
 *&-------------------------------------------------------------------*
 Form check_equnr_is_ok
   using

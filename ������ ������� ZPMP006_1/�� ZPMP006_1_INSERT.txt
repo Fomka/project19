@@ -16,12 +16,27 @@ FUNCTION ZPMP006_1_INSERT .
 *"      NUMS_NOT_EQUAL
 *"----------------------------------------------------------------------
   Data:
+    lv_unique_index type zpmp006_1-unique_index,
     ls_record type zpmp006_1,
     lv_num_of_input_records type i, "количество вставляемых строк
     lr_error type ref to CX_ROOT.
 
-"Поставить дату/время/автора изменения
+"Вычислить начальное значение индекса для заполнения столбца UNIQUE_INDEX
+  Select max( UNIQUE_INDEX )
+    into lv_unique_index
+    from ZPMP006_1.
+  If sy-subrc <> 0.
+    Message e000(su) with 'Оператор Select max( UNIQUE_INDEX )...'
+                          'завершился с ошибкой'
+                          sy-subrc.
+    Exit.
+  Endif.
+
+"Поставить мандант, уникальный индекс, дату/время/автора изменения
   Loop at ct_records into ls_record.
+    ls_record-mandt = sy-mandt.
+    Add 1 to lv_unique_index.
+    ls_record-unique_index = lv_unique_index.
     ls_record-change_date = sy-datum.
     ls_record-change_time = sy-uzeit.
     ls_record-change_name = sy-uname.
