@@ -32,9 +32,22 @@ Constants:
   gc_asterisk type c length 1 value '*',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '49',
+    minor type n length 2 value '50',
   end of gc_version,
   begin of gcs,
+  "Блокировки (функциональные модули ENQUEUE_*, DEQUEUE_*)
+    begin of lock,
+      begin of mode, "Режим блокирования
+        shared type enqmode value 'S', "могут устанавливаться другие блокировки
+        exclusive type enqmode value 'E', "другие не уст-ся, а эта расширяема
+        ext_exclusive type enqmode value 'X', "не уст-ся и не расширяема
+      end of mode,
+      begin of scope, "Время действия блокировки (где она должна сбрасываться)
+        min type ddenqscope value '1', "в программе
+        med type ddenqscope value '2', "в процессе обновления
+        max type ddenqscope value '3', "и в программе, и в процессе обновления
+      end of scope,
+    end of lock,
   "Коды иконок из вызова метода cl_icon->get_icon для...
     icon_delete type iconname value '@B_DELE@', "... 'ICON_DELETE'
     icon_undelete type iconname value '@F_UNDO@', "... 'ICON_SYSTEM_UNDO'
@@ -549,7 +562,10 @@ Form dispatch_user_command
   changing
     ov_ucomm type sy-ucomm.
 
-  Data: lv_ucomm type sy-ucomm.
+  Data:
+    lv_ucomm type sy-ucomm,
+    ls_data type ty_s_data,
+    lv_string type string.
 
   lv_ucomm = ov_ucomm. "ov_ucomm очищается при успешном завершении подпрограммы
 
@@ -591,7 +607,47 @@ Form dispatch_user_command
           Endif.
 
           If gc_true = p_tog_ch.
-            Call screen gcs-screens-data_change-number.
+          "Установить блокировку на все найденные записи
+            Loop at gt_data into ls_data.
+              Call function 'ENQUEUE_EZPMP006_1'
+                exporting
+                  mode_zpmp006_1       = gcs-lock-mode-exclusive
+                  mandt                = sy-mandt
+                  unique_index         = ls_data-unique_index
+                  x_unique_index       = gc_true
+                  _scope               = gcs-lock-scope-min
+                  _wait                = gc_false
+                  _collect             = gc_true "собрать в один пакет
+                        .
+            Endloop.
+            Call function 'FLUSH_ENQUEUE' "обработать собранный пакет
+              exceptions
+                foreign_lock         = 1
+                system_failure       = 2
+                others               = 3
+                      .
+            Case sy-subrc.
+              When 0.
+              "Перейти на экран CHANGE
+                Call screen gcs-screens-data_change-number.
+              When 1.
+                Concatenate 'Пользователь' sy-msgv1
+                  into lv_string
+                  separated by space.
+                Message s000(su)
+                  with lv_string
+                       'изменяет запрошенные вами данные.'
+                       'Включён режим просмотра'
+                  display like 'E'.
+              "Перейти на экран VIEW
+                Call screen gcs-screens-data_view-number.
+              When others.
+                Message id sy-msgid
+                  type sy-msgty
+                  number sy-msgno
+                  with sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+                Exit.
+            Endcase.
           Else.
             Call screen gcs-screens-data_view-number.
           Endif.
@@ -686,15 +742,51 @@ Form show_version using ic_version like gc_version.
 Endform. "show_version
 
 *&-------------------------------------------------------------------*
-*&   Уничтожить объекты на указанном экране, перейти на предыдущий
+*&   Снять блокировки и уничтожить объекты на указанном экране, перейти на
+*& предыдущий
 *&-------------------------------------------------------------------*
 Form exit_screen
   using i_dynnr like sy-dynnr.
 
-  Data: "Чтобы ловить исключительные ситуации
+  Data:
+    ls_data type ty_s_data,
+  "Чтобы ловить исключительные ситуации
     lv_exc_text type string,
     lr_exception type ref to cx_root.
 
+"Снять блокировки
+  Case i_dynnr.
+    When gcs-screens-data_change-number.
+    "Снять блокировку со всех записей
+      Loop at gt_data into ls_data.
+        Call function 'DEQUEUE_EZPMP006_1'
+          exporting
+            mode_zpmp006_1       = gcs-lock-mode-exclusive
+            mandt                = sy-mandt
+            unique_index         = ls_data-unique_index
+            x_unique_index       = gc_true
+            _scope               = gcs-lock-scope-min
+            _collect             = gc_true "собрать в один пакет
+                  .
+      Endloop.
+      Call function 'FLUSH_ENQUEUE'  "обработать собранный пакет
+        exceptions
+          foreign_lock         = 1
+          system_failure       = 2
+          others               = 3
+                .
+      If sy-subrc <> 0.
+        Message i000(su)
+          with 'Ошибка'
+               sy-subrc
+               'при вызове ФМ FLUSH_ENQUEUE'.
+        "Продолжить выполнение подпрограммы
+      Endif.
+    When others.
+    "Ничего не делать
+  Endcase.
+
+"Уничтожить использовавшиеся на экране объекты
   Case i_dynnr.
 
     When gcs-screens-data_create-number
@@ -722,7 +814,7 @@ Form exit_screen
 
   Endcase.
 
-  "Вернуться на предыдущий экран, с которого был вызван текущий
+"Вернуться на предыдущий экран, с которого был вызван текущий
   Leave to screen 0.
 Endform. "exit_screen
 
