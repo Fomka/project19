@@ -1,4 +1,20 @@
 FUNCTION-POOL ZPMP006_1.                     "MESSAGE-ID ..
 
 Constants:
-  gc_true type boolean value 'X'.
+  gc_true type boolean value 'X',
+  gc_false type boolean value ' ',
+  begin of gcs,
+  "Блокировки (функциональные модули ENQUEUE_*, DEQUEUE_*)
+    begin of lock,
+      begin of mode, "Режим блокирования
+        shared type enqmode value 'S', "могут устанавливаться другие блокировки
+        exclusive type enqmode value 'E', "другие не уст-ся, а эта расширяема
+        ext_exclusive type enqmode value 'X', "не уст-ся и не расширяема
+      end of mode,
+      begin of scope, "Время действия блокировки (где она должна сбрасываться)
+        min type ddenqscope value '1', "в программе
+        med type ddenqscope value '2', "в процессе обновления
+        max type ddenqscope value '3', "и в программе, и в процессе обновления
+      end of scope,
+    end of lock,
+  end of gcs.

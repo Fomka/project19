@@ -12,6 +12,9 @@ FUNCTION ZPMP006_1_INSERT .
 *"  CHANGING
 *"     REFERENCE(CT_RECORDS) TYPE  ZPMP006_1_TABLE_TYPE
 *"  EXCEPTIONS
+*"      MAX_INDEX_ERROR
+*"      FOREIGN_LOCK_ERROR
+*"      OTHER_LOCK_ERROR
 *"      DB_ERROR
 *"      NUMS_NOT_EQUAL
 *"----------------------------------------------------------------------
@@ -26,12 +29,8 @@ FUNCTION ZPMP006_1_INSERT .
     into lv_unique_index
     from ZPMP006_1.
   If sy-subrc <> 0.
-    Message e000(su) with 'ќператор Select max( UNIQUE_INDEX )...'
-                          'завершилс€ с ошибкой'
-                          sy-subrc.
-    Exit.
+    Raise max_index_error.
   Endif.
-
 "ѕоставить мандант, уникальный индекс, дату/врем€/автора изменени€
   Loop at ct_records into ls_record.
     ls_record-mandt = sy-mandt.
@@ -42,7 +41,33 @@ FUNCTION ZPMP006_1_INSERT .
     ls_record-change_name = sy-uname.
     Modify ct_records from ls_record index sy-tabix.
   Endloop.
-
+"”становить блокировку на все записи
+  Loop at ct_records into ls_record.
+    Call function 'ENQUEUE_EZPMP006_1'
+      exporting
+        mode_zpmp006_1       = gcs-lock-mode-exclusive
+        mandt                = sy-mandt
+        unique_index         = ls_record-unique_index
+        x_unique_index       = gc_true
+        _scope               = gcs-lock-scope-min
+        _wait                = gc_false
+        _collect             = gc_true "собрать в один пакет
+              .
+  Endloop.
+  Call function 'FLUSH_ENQUEUE' "обработать собранный пакет
+    exceptions
+      foreign_lock         = 1
+      system_failure       = 2
+      others               = 3
+            .
+  Case sy-subrc.
+    When 0.
+    "ѕродолжить
+    When 1.
+      Raise foreign_lock_error.
+    When others.
+      Raise other_lock_error.
+  Endcase.
 "¬ставить все переданные записи в ZPMP006_1 за один раз
   Try.
     Insert ZPMP006_1
@@ -73,4 +98,25 @@ FUNCTION ZPMP006_1_INSERT .
     Commit work and wait.
   Endif.
 
+"—н€ть блокировку со всех записей
+  Loop at ct_records into ls_record.
+    Call function 'DEQUEUE_EZPMP006_1'
+      exporting
+        mode_zpmp006_1       = gcs-lock-mode-exclusive
+        mandt                = sy-mandt
+        unique_index         = ls_record-unique_index
+        x_unique_index       = gc_true
+        _scope               = gcs-lock-scope-min
+        _collect             = gc_true "собрать в один пакет
+              .
+  Endloop.
+  Call function 'FLUSH_ENQUEUE'  "обработать собранный пакет
+    exceptions
+      foreign_lock         = 1
+      system_failure       = 2
+      others               = 3
+            .
+  If sy-subrc <> 0.
+    Raise other_lock_error.
+  Endif.
 Endfunction.

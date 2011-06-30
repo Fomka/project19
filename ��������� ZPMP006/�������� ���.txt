@@ -32,9 +32,10 @@ Constants:
   gc_asterisk type c length 1 value '*',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '50',
+    minor type n length 2 value '51',
   end of gc_version,
   begin of gcs,
+    insert_failed type i value '85', "Не удалось сохранить добавленные записи
   "Блокировки (функциональные модули ENQUEUE_*, DEQUEUE_*)
     begin of lock,
       begin of mode, "Режим блокирования
@@ -671,8 +672,10 @@ Form dispatch_user_command
             using gs_alv-01
             changing gt_data_before
                      gt_data.
-        "Вернуться на экран выбора после успешного сохранения
-          Perform exit_screen using sy-dynnr.
+          If sy-subrc <> gcs-insert_failed.
+          "Вернуться на экран выбора после успешного сохранения
+            Perform exit_screen using sy-dynnr.
+          Endif.
         When others. "Команда не найдена в списке обрабатываемых
           Message i000(SU) with 'На экране' iv_dynnr 'не обрабатывается команда' lv_ucomm.
       Endcase.
@@ -1355,7 +1358,9 @@ Form save_data
   "Для подтягивания изменений, которые делаются функ. модулями ZPMP006_1_*.
     lt_data_source type ty_t_data, "Содержимое таблиц del, ins, mod
     ls_data_source type ty_s_data, "Строка с данными из таблиц del, ins, mod
-    ls_data_destination type ty_s_data. "Строка для записи в ot_data
+    ls_data_destination type ty_s_data, "Строка для записи в ot_data
+  "Для сообщений
+    lv_string type string.
 
 
 "Подтянуть текущее состояние ячеек ALV-грида в связанную с ним таблицу ot_data
@@ -1403,24 +1408,56 @@ Form save_data
     exceptions
       db_error = 1.
   If sy-subrc <> 0.
-    Message e000(su) with 'Ошибка при вызове ZPMP006_1_DELETE.'
+    Message e000(su) with 'Ошибка'
+                          sy-subrc
+                          'при вызове ZPMP006_1_DELETE.'
                           'Содержимое таблицы ZPMP006_1 не изменено.'.
     Exit.
   Endif.
-  Call function 'ZPMP006_1_INSERT'
-    exporting
-      iv_do_commit = gc_false
-    importing
-      o_num_of_processed = ls_num_of-inserted
-    changing
-      ct_records = lt_ins_rows
-    exceptions
-      db_error = 1
-      nums_not_equal = 2.
-  If sy-subrc <> 0.
-    Message e000(su) with 'Ошибка при вызове ZPMP006_1_INSERT.'
-                          'Содержимое таблицы ZPMP006_1 не изменено.'.
-    Exit.
+  Do.
+    Call function 'ZPMP006_1_INSERT'
+      exporting
+        iv_do_commit = gc_false
+      importing
+        o_num_of_processed = ls_num_of-inserted
+      changing
+        ct_records = lt_ins_rows
+      exceptions
+        max_index_error = 1
+        foreign_lock_error = 2
+        other_lock_error = 3
+        db_error = 4
+        nums_not_equal = 5.
+    Case sy-subrc.
+      When 0.
+      "Вставка новых записей успешно завершена
+        Exit.
+      When 2.
+      "Вставка была заблокирована, повторить
+        If sy-index >= 3. "повторять не более 3 раз
+          Concatenate 'Пользователь' sy-msgv1
+            into lv_string
+            separated by space.
+          Message i000(su)
+            with lv_string
+                 'блокирует добавление новых записей.'
+                 'Содержимое таблицы ZPMP006_1 не изменено.'
+                 'Повторите попытку'.
+          Exit. "Выйти из цикла Do...Enddo.
+        Endif.
+        Wait up to 1 seconds. "Выдержать интервал в 1 секунду
+        Continue.
+      When others.
+        Message e000(su) with 'Ошибка'
+                              sy-subrc
+                              'при вызове ZPMP006_1_INSERT.'
+                              'Содержимое таблицы ZPMP006_1 не изменено.'.
+        Exit.
+    Endcase.
+  Enddo.
+  If lv_string is not initial.
+    sy-subrc = gcs-insert_failed.
+    Exit. "Выйти из подпрограммы после неудачного выполнения INSERT
   Endif.
   Call function 'ZPMP006_1_MODIFY'
     exporting
@@ -1432,7 +1469,9 @@ Form save_data
     exceptions
       db_error = 1.
   If sy-subrc <> 0.
-    Message e000(su) with 'Ошибка при вызове ZPMP006_1_MODIFY.'
+    Message e000(su) with 'Ошибка'
+                          sy-subrc
+                          'при вызове ZPMP006_1_MODIFY.'
                           'Содержимое таблицы ZPMP006_1 не изменено.'.
     Exit.
   Endif.
