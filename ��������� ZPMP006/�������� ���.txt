@@ -32,7 +32,7 @@ Constants:
   gc_asterisk type c length 1 value '*',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '51',
+    minor type n length 2 value '52',
   end of gc_version,
   begin of gcs,
     insert_failed type i value '85', "Не удалось сохранить добавленные записи
@@ -115,6 +115,7 @@ Constants:
         number type i value 1000,
         group_create type screen-group1 value 'CRE',"Изменил? Ищи modif id CRE
         group_change type screen-group1 value 'CHA',"Изменил? Ищи modif id CHA
+        group_all type screen-group1 value 'ALL',"Изменил? Ищи modif id ALL
         group_stort_restriction_1 type screen-group1 value 'ID1',"Изменил? Ищи modif id ID1
         group_stort_restriction_2 type screen-group1 value 'ID2',"Изменил? Ищи modif id ID2
       end of sel_screen,
@@ -395,6 +396,10 @@ Selection-screen begin of block b02 with frame.
     so3_chat for ZPMP006_1-CHANGE_TIME,
     so3_chan for ZPMP006_1-CHANGE_NAME.
   Parameters:
+  "show_deleted = показывать удалённые данные.
+    p_show_d as checkbox
+      modif id ALL "показывается, если есть полномочия на всё
+      default space, "по-умолчанию удалённые данные не показываются
   "toggle change = включить/выключить режим изменения
     p_tog_ch as checkbox
       modif id CHA "показывается, если есть полномочия на операцию CHANGE
@@ -469,6 +474,10 @@ At selection-screen output.
   If gs_permissions-change <> gc_true.
     Perform hide_screen_element_group using gcs-screens-sel_screen-group_change.
   Endif.
+"Спрятать то, чему требуются полномочия на всё, если этих полномочий нет
+  If gs_permissions-all <> gc_true.
+    Perform hide_screen_element_group using gcs-screens-sel_screen-group_all.
+  Endif.
 
 "Определить, как показывать параметр "Местоположение" (блок для CHANGE/VIEW)
   If gs_permissions-all = gc_true or
@@ -492,7 +501,7 @@ At selection-screen.
 
 *--- Нажатие "Выполнить" (F8) на экране выбора (sy-ucomm = 'ONLI') -----------*
 Start-of-selection.
-  Perform get_data changing gt_data gv_row_count.
+  Perform get_data using p_show_d changing gt_data gv_row_count.
   If gv_row_count = 0. "Обработать результат выборки из БД, вхождение 1 из 3
     Message i000(SU) with 'Не найдено ни одной записи'.
     Exit.
@@ -514,7 +523,10 @@ Module init_screen output. "Общий для всех экранов — установить GUI-статус
     When gcs-screens-data_create-number.
       Set pf-status gcs-screens-status-save. "Минимум + сохранение
       Set titlebar gcs-screens-data_create-title.
-      Perform alv_1_display using gs_permissions-all changing gt_data gs_alv-01.
+      Perform alv_1_display
+        using gs_permissions-all
+              p_show_d
+        changing gt_data gs_alv-01.
       Call method gs_alv-01-r_grid->set_ready_for_input
         exporting
           i_ready_for_input = 1
@@ -525,7 +537,10 @@ Module init_screen output. "Общий для всех экранов — установить GUI-статус
     When gcs-screens-data_change-number.
       Set pf-status gcs-screens-status-save. "Минимум + сохранение
       Set titlebar gcs-screens-data_change-title.
-      Perform alv_1_display using gs_permissions-all changing gt_data gs_alv-01.
+      Perform alv_1_display
+        using gs_permissions-all
+              p_show_d
+        changing gt_data gs_alv-01.
       Call method gs_alv-01-r_grid->set_ready_for_input
         exporting
           i_ready_for_input = 1
@@ -534,7 +549,10 @@ Module init_screen output. "Общий для всех экранов — установить GUI-статус
 
     When gcs-screens-data_view-number.
       Set titlebar gcs-screens-data_view-title.
-      Perform alv_1_display using gs_permissions-all changing gt_data gs_alv-01.
+      Perform alv_1_display
+        using gs_permissions-all
+              p_show_d
+        changing gt_data gs_alv-01.
       Call method gs_alv-01-r_grid->set_ready_for_input
         exporting
           i_ready_for_input = 0
@@ -599,7 +617,7 @@ Form dispatch_user_command
           Call screen gcs-screens-data_create-number.
 
         When gcs-commands-sel_screen-goto_search.
-          Perform get_data changing gt_data gv_row_count.
+          Perform get_data using p_show_d changing gt_data gv_row_count.
           If gv_row_count = 0. "Обработать результат выборки из БД, вхождение 2 из 3
             Message i000(SU) with 'Не найдено ни одной записи'.
             Exit.
@@ -1043,14 +1061,51 @@ Endform. "get_op_restrictions
 *&-------------------------------------------------------------------*
 *&   Заполнить внутреннюю таблицу данными из базы данных
 *&
+*&  -> iv_show_deleted = показывать удалённые данные
 *& <-> ot_data = вн. таблица (источник задан константой — ZPMP006_1)
 *& <-> ov_count = количество строк, выбранных из БД во вн. таблицу
 *&-------------------------------------------------------------------*
 Form get_data
+  using
+    iv_show_deleted type boolean
   changing
     ot_data type ty_t_data
     ov_count type i.
-  "Выбрать записи, перезаписав таблицу ot_data
+
+  Data: ls_data type ty_s_data.
+
+"Select перезаписывает таблицу ot_data
+  If iv_show_deleted <> gc_true.
+  "Показывать только неудалённые данные
+    Select *
+      from ZPMP006_1
+      into corresponding fields of table ot_data
+      where STORT in so1_strt
+        and EQUNR in so1_eqnr
+        and TYPE in so1_type
+        and SERGE in so1_serg
+        and EQUIPMENT_NAME in so1_name
+        and MANUFACT_NAME in so1_man2
+        and MANUFACT_PLACE in so1_man1
+        and DATE_START in so1_date
+        and PROJECT in so1_proj
+        and SOFTWARE_NAME in so2_name
+        and VERSION_ORIGINAL in so2_vero
+        and VERSION_MOD in so2_verm
+        and DEV_ENVIRONMENT in so2_denv
+        and MOD_CAUSE in so2_mcau
+        and MOD_WORKER in so2_mwor
+        and MOD_DATE in so2_mdat
+        and NUM_OF_COPIES in so2_numc
+        and COMMENTARY in so3_comm
+        and CHANGE_DATE IN so3_chad
+        and CHANGE_TIME IN so3_chat
+        and CHANGE_NAME IN so3_chan
+        and DELETED EQ gc_false.
+    ov_count = sy-dbcnt.
+    Exit.
+  Endif.
+"Показывать и удалённые, и неудалённые данные
   Select *
     from ZPMP006_1
     into corresponding fields of table ot_data
@@ -1074,9 +1129,15 @@ Form get_data
       and COMMENTARY in so3_comm
       and CHANGE_DATE IN so3_chad
       and CHANGE_TIME IN so3_chat
-      and CHANGE_NAME IN so3_chan
-      and DELETED EQ gc_false.
+      and CHANGE_NAME IN so3_chan.
   ov_count = sy-dbcnt.
+  Loop at ot_data into ls_data.
+    If ls_data-deleted = gc_true.
+      ls_data-alv_deleted = gc_true.
+      ls_data-alv_row_color = gcs-alv-color-lightred.
+      Modify ot_data from ls_data index sy-tabix.
+    Endif.
+  Endloop.
 Endform. "get_data
 
 *&-------------------------------------------------------------------*
@@ -1086,6 +1147,7 @@ Endform. "get_data
 *&
 *&  -> iv_dynnr = номер экрана, для которого подготавливается ALV-грид
 *&  -> iv_can_change_variant = разрешение изменять внешний вид грида
+*&  -> iv_show_deleted = показывать удалённые данные
 *& <-> ot_fieldcat = структура грида (набор столбцов)
 *& <-> ot_sort = правила сортировки
 *& <-> os_layout = общие настройки внешнего вида
@@ -1095,6 +1157,7 @@ Form alv_1_prepare
   using
     iv_dynnr type sy-dynnr
     iv_can_change_variant type boolean
+    iv_show_deleted type boolean
   changing:
     ot_fieldcat type lvc_t_fcat
     ot_sort type lvc_t_sort
@@ -1141,6 +1204,14 @@ Form alv_1_prepare
     If ls_fcat-fieldname = gcs-data_table-equnr and
        iv_dynnr = gcs-screens-data_view-number.
       ls_fcat-hotspot = gc_true.
+    Endif.
+
+  "Обработать полномочия на показ удалённых данных
+    If ls_fcat-fieldname = gcs-data_table-deleted and
+       iv_show_deleted = gc_true and
+       iv_dynnr <> gcs-screens-data_create-number.
+      ls_fcat-no_out = gc_false. "Показывать столбец "Удалено"
+      ls_fcat-edit = gc_false. "Запретить изменение (изменять только кнопками)
     Endif.
 
   "Сделать некоторые столбцы недоступными для изменения содержимого
@@ -1219,6 +1290,7 @@ Endform. "alv_1_prepare
 *& gcs-data_table-table_name.
 *&
 *&  -> iv_can_change_variant = разрешение изменять внешний вид грида
+*&  -> iv_show_deleted = показывать удалённые данные
 *& <-> ot_data = внутренняя таблица с данными из таблицы БД
 *& <-> os_alv = набор объектов, необходимый для отображения ALV-грида
 *&
@@ -1226,6 +1298,7 @@ Endform. "alv_1_prepare
 Form alv_1_display
   using
     iv_can_change_variant type boolean
+    iv_show_deleted type boolean
   changing
     ot_data type ty_t_data
     os_alv type ty_s_alv-01.
@@ -1272,6 +1345,7 @@ Form alv_1_display
       using
         sy-dynnr
         iv_can_change_variant
+        iv_show_deleted
       changing
         os_alv-t_fcat
         os_alv-t_sort
@@ -1347,7 +1421,7 @@ Form save_data
 
   Data:
     lv_data_is_valid type c length 1,
-    lt_del_rows type ZPMP006_1_TABLE_TYPE, "строки, которые были удалены после вызова
+    lt_del_rows type ty_t_data, "строки, которые были удалены после вызова
     lt_ins_rows type ty_t_data, "-//- вставлены
     lt_mod_rows type ty_t_data, "-//- изменены
     begin of ls_num_of,
@@ -1372,6 +1446,14 @@ Form save_data
     Message e000(su) with 'Ошибка в данных, сохранение не выполнено'.
     Exit.
   Endif.
+
+"Перенести сброс флага alv_deleted на флаг deleted, чтобы обновить запись в БД
+  Loop at ot_data into ls_data_destination
+    where deleted = gc_true and
+          alv_deleted = gc_false.
+    ls_data_destination-deleted = gc_false.
+    Modify ot_data from ls_data_destination index sy-tabix.
+  Endloop.
 
 "Найти отличия между тем, что было в гриде до и после вызова check_changed_data
   "Обработать удалённые строки
@@ -1485,10 +1567,15 @@ Form save_data
                         ls_num_of-inserted
                         ls_num_of-modified.
 
-"Обновить данные об изменениях в гриде — подтянуть содержимое полей дата,
-"время и автор изменения, которое было заполнено ФМ ZPMP006_1_MODIFY.
+"Обновить данные в гриде
   Refresh lt_data_source.
   Move lt_mod_rows to lt_data_source.
+  If p_show_d = gc_false.
+  "Не нужно обновлять данные в удалённых строках, если они не показываются
+    Delete ot_data where alv_deleted = gc_true.
+  Else.
+    Append lines of lt_del_rows to lt_data_source.
+  Endif.
   Loop at lt_data_source into ls_data_source.
     Read table ot_data into ls_data_destination
       with key unique_index = ls_data_source-unique_index.
@@ -1500,15 +1587,10 @@ Form save_data
              'на экране. Сообщите разработчикам по т. 6-04-42'.
       Continue. "Перейти к следующей записи в lt_data_source
     Endif.
-  "Найдена запись, в которую нужно подтянуть данные о последнем изменении
-    ls_data_destination-change_date = ls_data_source-change_date.
-    ls_data_destination-change_time = ls_data_source-change_time.
-    ls_data_destination-change_name = ls_data_source-change_name.
+  "Найдена запись, в которую нужно подтянуть сохранённые в таблице данные
+    Move-corresponding ls_data_source to ls_data_destination.
     Modify ot_data from ls_data_destination index sy-tabix.
   Endloop.
-
-"Удалить записи, которые были помечены, как удалённые
-  Delete ot_data where alv_deleted = gc_true.
 
 "Запомнить содержимое до изменений, 3 из 3
   Move ot_data to ot_data_before.

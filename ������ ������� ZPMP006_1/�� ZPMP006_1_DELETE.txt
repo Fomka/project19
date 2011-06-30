@@ -10,7 +10,7 @@ FUNCTION ZPMP006_1_DELETE .
 *"  EXPORTING
 *"     REFERENCE(O_NUM_OF_PROCESSED) TYPE  I
 *"  CHANGING
-*"     REFERENCE(Cct_records) TYPE  ZPMP006_1_TABLE_TYPE
+*"     REFERENCE(ct_records) TYPE  ZPMP006_1_TABLE_TYPE
 *"  EXCEPTIONS
 *"      DB_ERROR
 *"----------------------------------------------------------------------
@@ -20,11 +20,12 @@ FUNCTION ZPMP006_1_DELETE .
 
 "Поставить метку удаления в записях таблицы ZPMP006_1 (по одной записи)
   Loop at ct_records into ls_record.
+    ls_record-deleted = gc_true.
     ls_record-change_date = sy-datum.
     ls_record-change_time = sy-uzeit.
     ls_record-change_name = sy-uname.
     Update ZPMP006_1
-      set DELETED = gc_true
+      set DELETED = ls_record-deleted
           CHANGE_DATE = ls_record-change_date
           CHANGE_TIME = ls_record-change_time
           CHANGE_NAME = ls_record-change_name
