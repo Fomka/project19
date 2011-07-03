@@ -1,0 +1,13 @@
+﻿Project 19 is one of my tasks that I'm developing in SAP ERP system of a plant in Glazov.
+The language used is called ABAP, it's built-in language of SAP systems.
+To run the code you need an access to SAP Netweaver Application Server. You can download it for trial from http://www.sdn.sap.com/irj/scn/nw-downloads
+
+The project is for Russian users, so filenames, commit messages, text elements and comments are in Russian.
+Project's task is to provide a tool for tracking software, that is used on the plant.
+Data about software are stored in database table ZPMP006_1, they are displayed and edited via program ZPMP006.
+The program features are:
+- ALV-Grid technology for data display/edit, where edit means insert/modify/delete;
+- database locks for insert/modify operations;
+- checks for user permissions;
+- custom search help for equipment;
+- export to Excel.
