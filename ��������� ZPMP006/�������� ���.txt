@@ -32,7 +32,7 @@ Constants:
   gc_asterisk type c length 1 value '*',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '53',
+    minor type n length 2 value '55',
   end of gc_version,
   begin of gcs,
     insert_failed type i value '85', "Не удалось сохранить добавленные записи
@@ -1240,6 +1240,13 @@ Form alv_1_prepare
   Append ls_sort to ot_sort.
 
 "Убрать кнопки
+  If iv_dynnr = gcs-screens-data_change-number.
+  "На экране CHANGE отключено добавление новых строк, из-за этого действие
+  "кнопок mc_fc_loc_paste и mc_fc_loc_paste_new_row одинаково => одна не нужна
+    ls_excl = cl_gui_alv_grid=>mc_fc_loc_paste_new_row. "Вставить в новую строку"
+    Append ls_excl to ot_excl.
+  Endif.
+
   ls_excl = cl_gui_alv_grid=>mc_mb_sum. "Кнопки "Суммы", "Подсуммы"
   Append ls_excl to ot_excl.
 
