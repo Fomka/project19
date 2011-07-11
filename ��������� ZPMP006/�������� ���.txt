@@ -32,7 +32,7 @@ Constants:
   gc_asterisk type c length 1 value '*',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '57',
+    minor type n length 2 value '58',
   end of gc_version,
   begin of gcs,
     insert_failed type i value '85', "Не удалось сохранить добавленные записи
@@ -53,6 +53,7 @@ Constants:
     icon_delete type iconname value '@B_DELE@', "... 'ICON_DELETE'
     icon_undelete type iconname value '@F_UNDO@', "... 'ICON_SYSTEM_UNDO'
     icon_excel type iconname value '@X__XLS@', "... 'ICON_XLS'
+    icon_log type iconname value '@B_RKHI@', "... 'ICON_HISTORY'
     werks type T499S-WERKS value '1000', "номер завода, для проверки местоположений
   "Select-options
     begin of so,
@@ -78,6 +79,7 @@ Constants:
         delete type sy-ucomm value 'DELETE',
         undelete type sy-ucomm value 'UNDELETE',
         excel type sy-ucomm value 'EXCEL',
+        show_log type sy-ucomm value 'LOG',
       end of alv,
       "Общие для всех экранов
       help type sy-ucomm value 'HELP',
@@ -119,6 +121,9 @@ Constants:
         group_stort_restriction_1 type screen-group1 value 'ID1',"Изменил? Ищи modif id ID1
         group_stort_restriction_2 type screen-group1 value 'ID2',"Изменил? Ищи modif id ID2
       end of sel_screen,
+      begin of log,
+        number type dynnr value 40,
+      end of log,
     end of screens,
     begin of alv, "общее для гридов (ALV-Grid)
       begin of color,
@@ -185,7 +190,20 @@ Constants:
       alv_row_color type NAME_FELD value 'ALV_ROW_COLOR',
       alv_deleted type NAME_FELD value 'ALV_DELETED',
     end of data_table,
-  end of gcs.
+  end of gcs,
+  begin of gcs_log_table, "Вне gcs-* для того, чтобы обращаться к gcs-*
+      table_name type TABNAME value 'ZPMP006_3',
+      key_mandt type NAME_FELD value gcs-data_table-key_mandt,
+      key_unique_index type NAME_FELD value gcs-data_table-key_unique_index,
+      key_change_date type NAME_FELD value gcs-data_table-change_date,
+      key_change_time type NAME_FELD value gcs-data_table-change_time,
+      key_change_name type NAME_FELD value gcs-data_table-change_name,
+      key_field_name type NAME_FELD value 'FIELD_NAME',
+      field_label type NAME_FELD value 'FIELD_LABEL',
+      value_new type NAME_FELD value 'VALUE_NEW',
+      value_old type NAME_FELD value 'VALUE_OLD',
+      alv_row_color type NAME_FELD value gcs-data_table-alv_row_color,
+    end of gcs_log_table.
 
 *&-------------------------------------------------------------------*
 *& Обработчик событий для всех типов ALV-гридов, объявление
@@ -210,7 +228,9 @@ Class lcl_grid_event_handler definition final.
           importing sender e_fieldname e_fieldvalue es_row_no er_event_data,
       handle_data_changed
         for event data_changed of cl_gui_alv_grid
-          importing sender er_data_changed.
+          importing sender er_data_changed,
+      on_dialogbox_close
+        for event close of cl_gui_dialogbox_container.
   Private section.
     "Пусто
 Endclass.
@@ -222,8 +242,10 @@ Types:
   ty_t_strings type standard table of ty_s_string,
   ty_t_data type ZPMP006_1_TABLE_TYPE,
   ty_s_data type line of ty_t_data,
+  ty_s_log type ZPMP006_3,
+  ty_t_log type standard table of ty_s_log,
   begin of ty_s_alv,
-    begin of 01,
+    begin of data, "Данные по ПО
       r_grid type ref to cl_gui_alv_grid,
       r_handler type ref to lcl_grid_event_handler,
       r_cont type ref to cl_gui_docking_container,
@@ -234,7 +256,18 @@ Types:
       s_layo type lvc_s_layo,
       s_vari type disvariant,
       v_save type c,
-    end of 01,
+    end of data,
+    begin of log, "Журнал изменений во всплывающем окне
+      r_grid type ref to cl_gui_alv_grid,
+      r_handler type ref to lcl_grid_event_handler,
+      r_cont type ref to cl_gui_dialogbox_container, "всплывающее окно
+      t_fcat type lvc_t_fcat,
+      t_sort type lvc_t_sort,
+      t_excl type ui_functions,
+      s_layo type lvc_s_layo,
+      s_vari type disvariant,
+      v_save type c,
+    end of log,
   end of ty_s_alv.
 
 Data:
@@ -264,7 +297,7 @@ Class lcl_grid_event_handler implementation.
   Method handle_toolbar.
     "Переключение между гридами
     Case sender.
-      When gs_alv-01-r_grid.
+      When gs_alv-data-r_grid.
         Perform alv_1_handle_toolbar using e_object.
       When others.
         Message i000(SU) with 'Событие toolbar' 'не обрабатывается для этого ALV-Grid''а'.
@@ -273,7 +306,7 @@ Class lcl_grid_event_handler implementation.
   Method handle_user_command.
     "Переключение между гридами
     Case sender.
-      When gs_alv-01-r_grid.
+      When gs_alv-data-r_grid.
         Perform alv_1_handle_user_command using sender e_ucomm.
       When others.
         Message i000(SU) with 'Событие toolbar' 'не обрабатывается для этого ALV-Grid''а'.
@@ -282,7 +315,7 @@ Class lcl_grid_event_handler implementation.
   Method handle_hotspot_click.
     "Переключение между гридами
     Case sender.
-      When gs_alv-01-r_grid.
+      When gs_alv-data-r_grid.
         Perform alv_1_handle_hotspot_click
           using e_column_id
                 es_row_no
@@ -294,7 +327,7 @@ Class lcl_grid_event_handler implementation.
   Method handle_double_click.
     "Переключение между гридами
     Case sender.
-      When gs_alv-01-r_grid.
+      When gs_alv-data-r_grid.
         Perform alv_1_handle_double_click
           using e_column
                 es_row_no
@@ -305,7 +338,7 @@ Class lcl_grid_event_handler implementation.
   Endmethod.
   Method handle_onf4.
     Case sender.
-      When gs_alv-01-r_grid.
+      When gs_alv-data-r_grid.
         Case e_fieldname.
           When gcs-data_table-stort. "Местоположение
             Data:
@@ -345,13 +378,16 @@ Class lcl_grid_event_handler implementation.
   Endmethod.
   Method handle_data_changed.
     Case sender.
-      When gs_alv-01-r_grid.
+      When gs_alv-data-r_grid.
         "Использовать экземпляр класса, передаваемый через сообщение
         Perform alv_1_handle_data_changed
           using er_data_changed.
       When others.
         Message i000(SU) with 'Событие data_changed' 'не обрабатывается для этого ALV-Grid''а'.
     Endcase.
+  Endmethod.
+  Method  on_dialogbox_close.
+    Perform exit_screen using gcs-screens-log-number.
   Endmethod.
 Endclass.
 
@@ -527,8 +563,8 @@ Module init_screen output. "Общий для всех экранов — установить GUI-статус
       Perform alv_1_display
         using gs_permissions-all
               p_show_d
-        changing gt_data gs_alv-01.
-      Call method gs_alv-01-r_grid->set_ready_for_input
+        changing gt_data gs_alv-data.
+      Call method gs_alv-data-r_grid->set_ready_for_input
         exporting
           i_ready_for_input = 1
           .
@@ -541,8 +577,8 @@ Module init_screen output. "Общий для всех экранов — установить GUI-статус
       Perform alv_1_display
         using gs_permissions-all
               p_show_d
-        changing gt_data gs_alv-01.
-      Call method gs_alv-01-r_grid->set_ready_for_input
+        changing gt_data gs_alv-data.
+      Call method gs_alv-data-r_grid->set_ready_for_input
         exporting
           i_ready_for_input = 1
           .
@@ -553,8 +589,8 @@ Module init_screen output. "Общий для всех экранов — установить GUI-статус
       Perform alv_1_display
         using gs_permissions-all
               p_show_d
-        changing gt_data gs_alv-01.
-      Call method gs_alv-01-r_grid->set_ready_for_input
+        changing gt_data gs_alv-data.
+      Call method gs_alv-data-r_grid->set_ready_for_input
         exporting
           i_ready_for_input = 0
           .
@@ -688,7 +724,7 @@ Form dispatch_user_command
       Case lv_ucomm.
         When gcs-commands-new_screen-save.
           Perform save_data
-            using gs_alv-01
+            using gs_alv-data
             changing gt_data_before
                      gt_data.
           If sy-subrc <> gcs-insert_failed.
@@ -703,11 +739,11 @@ Form dispatch_user_command
       Case lv_ucomm.
         When gcs-commands-change_screen-save.
           Perform save_data
-            using gs_alv-01
+            using gs_alv-data
             changing gt_data_before
                      gt_data.
         "Обновить грид, сохраняя горизонтальную/вертикальную позиции прокрутки
-          Call method gs_alv-01-r_grid->refresh_table_display
+          Call method gs_alv-data-r_grid->refresh_table_display
             exporting
               is_stable = gcs-alv-stable_refresh.
         When others. "Команда не найдена в списке обрабатываемых
@@ -815,20 +851,35 @@ Form exit_screen
       or gcs-screens-data_change-number
       or gcs-screens-data_view-number.
       Try.
-        Call method gs_alv-01-r_grid->free.
-        Call method gs_alv-01-r_cont->free.
+        Call method gs_alv-data-r_grid->free.
+        Call method gs_alv-data-r_cont->free.
       Catch cx_root into lr_exception. "#EC CATCH_ALL
         Call method lr_exception->if_message~get_text
           receiving
             result = lv_exc_text.
         Message i000(SU) with 'Исключительная ситуация при вызове методов Free:' lv_exc_text.
       Endtry.
-      Free: gs_alv-01-r_grid, gs_alv-01-r_cont, gs_alv-01-r_handler,
+      Free: gs_alv-data-r_grid, gs_alv-data-r_cont, gs_alv-data-r_handler,
             gt_data, gt_data_before,
-            gs_alv-01-t_fcat, gs_alv-01-t_sort, gs_alv-01-t_excl,
-            gs_alv-01-t_f4,
-            gs_alv-01-s_layo, gs_alv-01-s_vari,
-            gs_alv-01-v_save.
+            gs_alv-data-t_fcat, gs_alv-data-t_sort, gs_alv-data-t_excl,
+            gs_alv-data-t_f4,
+            gs_alv-data-s_layo, gs_alv-data-s_vari,
+            gs_alv-data-v_save.
+
+    When gcs-screens-log-number.
+      Try.
+        Call method gs_alv-log-r_grid->free.
+        Call method gs_alv-log-r_cont->free.
+      Catch cx_root into lr_exception. "#EC CATCH_ALL
+        Call method lr_exception->if_message~get_text
+          receiving
+            result = lv_exc_text.
+        Message i000(SU) with 'Исключительная ситуация при вызове методов Free:'
+                              lv_exc_text.
+      Endtry.
+
+      Free: gs_alv-log-r_grid, gs_alv-log-r_cont, gs_alv-log-r_handler.
+      Exit. "Не возвращаться на предыдущий экран, т.к. screens-log — фиктивный
 
     When others.
       Message i000(SU) with 'Модуль exit_screen не обрабатывает экран' i_dynnr.
@@ -1063,8 +1114,8 @@ Endform. "get_op_restrictions
 *&   Заполнить внутреннюю таблицу данными из базы данных
 *&
 *&  -> iv_show_deleted = показывать удалённые данные
-*& <-> ot_data = вн. таблица (источник задан константой — ZPMP006_1)
-*& <-> ov_count = количество строк, выбранных из БД во вн. таблицу
+*& <-> ot_data = внутренняя таблица (источник задан константой — ZPMP006_1)
+*& <-> ov_count = количество строк, выбранных из БД во внутреннюю таблицу
 *&-------------------------------------------------------------------*
 Form get_data
   using
@@ -1317,7 +1368,7 @@ Form alv_1_display
     iv_show_deleted type boolean
   changing
     ot_data type ty_t_data
-    os_alv type ty_s_alv-01.
+    os_alv type ty_s_alv-data.
 
   If os_alv-r_grid is initial.
     Create object os_alv-r_cont
@@ -1431,7 +1482,7 @@ Endform. "alv_1_display
 *&-------------------------------------------------------------------*
 Form save_data
   using
-    is_alv type ty_s_alv-01
+    is_alv type ty_s_alv-data
   changing
     ot_data_before type ty_t_data
     ot_data type ty_t_data.
@@ -1852,6 +1903,13 @@ Form alv_1_handle_toolbar
     ls_toolbar-text = 'Выгрузить в Excel'.
     ls_toolbar-quickinfo = 'Выгрузить таблицу в файл Excel'.
     Append ls_toolbar to i_object->mt_toolbar.
+    Clear ls_toolbar.
+    ls_toolbar-function = gcs-commands-alv-show_log.
+    ls_toolbar-butn_type = gcs-alv-toolbar-button_type-normal. "Обычная кнопка
+    ls_toolbar-icon = gcs-icon_log.
+    ls_toolbar-text = 'Журнал изменений'.
+    ls_toolbar-quickinfo = 'Показать журнал изменений'.
+    Append ls_toolbar to i_object->mt_toolbar.
   Endif.
 
 Endform. "alv_1_handle_toolbar
@@ -1904,6 +1962,25 @@ Form alv_1_handle_user_command
 
     When gcs-commands-alv-excel.
       Perform export_to_excel using gt_data.
+
+    When gcs-commands-alv-show_log.
+      Perform show_log
+        using
+          ir_alv
+          gt_data
+        changing
+          lv_row_count
+          gs_alv.
+      Case lv_row_count.
+        When -1.
+          Message s000(su) with 'Выберите строки кнопками слева'.
+        When 0.
+          Message s000(su) with 'Не найдены данные в журнале изменений'.
+        When others.
+          Message s000(su) with 'Найдено строк в журнале изменений:'
+                                lv_row_count
+                                'шт.'.
+      Endcase.
 
     When others.
       Message i000(su) with 'Команда' i_ucomm 'пока не обрабатывается'.
@@ -2456,3 +2533,270 @@ Form export_to_excel using it_data like gt_data.
   Endif.
 
 Endform. "export_to_excel
+
+*&-------------------------------------------------------------------*
+*&   Подготовить набор объектов, необходимый для отображения ALV-грида с логом.
+*& Структура грида заполняется из таблицы ZPMP006_3, которая задана через
+*& глобальную константу gcs_log_table-table_name.
+*&
+*&  -> iv_can_change_variant = разрешение изменять внешний вид грида
+*& <-> ot_fieldcat = структура грида (набор столбцов)
+*& <-> ot_sort = правила сортировки
+*& <-> os_layout = общие настройки внешнего вида
+*& <-> os_variant = вариант внешнего вида, заданный по умолчанию
+*&-------------------------------------------------------------------*
+Form alv_2_prepare
+  using
+    iv_can_change_variant type boolean
+  changing:
+    ot_fieldcat type lvc_t_fcat
+    ot_sort type lvc_t_sort
+    ot_excl type ui_functions
+    os_layout type lvc_s_layo
+    os_variant type disvariant
+    ov_save_mode type c.
+
+  Data:
+    ls_fcat type lvc_s_fcat,
+    ls_sort type lvc_s_sort,
+    ls_excl type ui_func.
+
+"Field catalog
+  Call function 'LVC_FIELDCATALOG_MERGE'
+    exporting
+      i_structure_name             = gcs_log_table-table_name
+    changing
+      ct_fieldcat                  = ot_fieldcat
+    exceptions
+      others                       = 1
+            .
+  If sy-subrc <> 0.
+    Message e000(SU) with 'Ошибка при заполнении fieldcat для ALV на экране'
+                          sy-dynnr
+                          'из таблицы'
+                          gcs_log_table-table_name.
+    Exit.
+  Endif.
+
+  Loop at ot_fieldcat into ls_fcat.
+  "Обработать все столбцы
+    If ls_fcat-fieldname = gcs_log_table-key_mandt or
+       ls_fcat-fieldname = gcs_log_table-key_unique_index or
+       ls_fcat-fieldname = gcs_log_table-key_field_name.
+      ls_fcat-no_out = gc_true.
+    Endif.
+    Modify ot_fieldcat from ls_fcat index sy-tabix.
+  Endloop.
+
+"Sort
+  ls_sort-spos = 1.
+  ls_sort-fieldname = gcs_log_table-key_change_date.
+  ls_sort-down = gc_true.
+  ls_sort-up = gc_false.
+  Append ls_sort to ot_sort.
+
+  ls_sort-spos = 2.
+  ls_sort-fieldname = gcs_log_table-key_change_time.
+  ls_sort-down = gc_true.
+  ls_sort-up = gc_false.
+  Append ls_sort to ot_sort.
+
+"Убрать кнопки
+  ls_excl = cl_gui_alv_grid=>mc_mb_sum. "Кнопки "Суммы", "Подсуммы"
+  Append ls_excl to ot_excl.
+
+  ls_excl = cl_gui_alv_grid=>mc_fc_graph. "Кнопка "Графика"
+  Append ls_excl to ot_excl.
+
+"Обработать полномочия на работу с внешним видом грида
+  If iv_can_change_variant <> gc_true.
+  "Убрать все кнопки для пользователей без полномочий
+    ls_excl = cl_gui_alv_grid=>mc_mb_variant. "Кнопки "Формат" — внешний вид
+    Append ls_excl to ot_excl.
+  Else.
+  "Оставить кнопки, задать что можно сохранять внешний вид любыми способами
+    ov_save_mode = gcs-alv-variant_save_modes-all.
+  Endif.
+
+"Layout
+  os_layout-edit = gc_false.
+  os_layout-cwidth_opt = gc_true.
+  os_layout-sel_mode = gcs-alv-sel_mode-d.
+  os_layout-info_fname = gcs_log_table-alv_row_color.
+
+"Variant = вариант внешнего вида
+  os_variant-report = sy-repid. "использовать вариант по умолчанию, если есть
+
+Endform. "alv_2_prepare
+
+*&-------------------------------------------------------------------*
+*&   Показать/обновить грид типа 2 в контейнере класса cl_gui_dialogbox_cont.
+*& Данные для грида — в ot_data.
+*& Структура и внешний вид грида задаются подпрограммой alv_2_prepare
+*& из таблицы ZPMP006_3, которая задана через глобальную константу
+*& gcs_log_table-table_name.
+*&
+*&  -> iv_can_change_variant = разрешение изменять внешний вид грида
+*& <-> ot_log = внутренняя таблица с данными из таблицы ZPMP006_3
+*& <-> os_alv = набор объектов, необходимый для отображения ALV-грида
+*&
+*&-------------------------------------------------------------------*
+Form alv_2_display
+  using
+    iv_can_change_variant type boolean
+  changing
+    ot_log type ty_t_log
+    os_alv type ty_s_alv-log.
+
+  If os_alv-r_grid is initial.
+    Create object os_alv-r_cont
+      exporting
+        width         = 640
+        height        = 200
+        repid         = sy-repid
+        dynnr         = sy-dynnr
+        top           = 100
+        left          = 200
+        caption       = 'Журнал изменений'
+      exceptions
+        others        = 1
+        .
+    If sy-subrc <> 0.
+      Message e000(SU) with 'Не удалось создать экземпляр'
+                            'dialogbox-контейнера на экране'
+                            sy-dynnr.
+      Exit.
+    Endif.
+
+    Create object os_alv-r_handler.
+    Set handler os_alv-r_handler->on_dialogbox_close for os_alv-r_cont.
+
+    Create object os_alv-r_grid
+      exporting
+        i_parent          = os_alv-r_cont
+      exceptions
+        others            = 1
+        .
+    If sy-subrc <> 0.
+      Message e000(SU) with 'Не удалось создать экземпляр ALV-Grid''а'
+                            'на экране'
+                            sy-dynnr.
+      Exit.
+    Endif.
+
+    Perform alv_2_prepare
+      using
+        iv_can_change_variant
+      changing
+        os_alv-t_fcat
+        os_alv-t_sort
+        os_alv-t_excl
+        os_alv-s_layo
+        os_alv-s_vari
+        os_alv-v_save.
+
+    Call method os_alv-r_grid->set_table_for_first_display
+      exporting
+        is_layout                     = os_alv-s_layo
+        is_variant                    = os_alv-s_vari
+        i_save                        = os_alv-v_save
+        it_toolbar_excluding          = os_alv-t_excl
+      changing
+        it_outtab                     = ot_log
+        it_fieldcatalog               = os_alv-t_fcat
+        it_sort                       = os_alv-t_sort
+      exceptions
+        others                        = 1
+            .
+    If sy-subrc <> 0.
+      Message e000(SU) with 'Исключ. ситуация при вызове метода'
+                            'os_alv-r_grid->set_table_for_first_display'
+                            'на экране'
+                            sy-dynnr.
+      Exit.
+    Endif.
+
+  Else.
+  "Обновить грид, сохраняя горизонтальную/вертикальную позиции прокрутки
+    Call method os_alv-r_grid->refresh_table_display
+      exporting
+        is_stable = gcs-alv-stable_refresh.
+  Endif.
+Endform. "alv_2_display
+
+*&-------------------------------------------------------------------*
+*&   Показать журнал изменений для выделенной строки
+*&
+*&  -> ir_alv = ссылка на грид, в котором выделена строка
+*&  -> it_data = таблица, привязанная к гриду
+*& <-> ov_row_count = количество строк в журнале, -1 если строки не выделены
+*& <-> os_alv = структура типа ty_s_alv, в ней изменяется ветка log
+*&-------------------------------------------------------------------*
+Form show_log
+  using
+    ir_alv type ref to cl_gui_alv_grid
+    it_data type ty_t_data
+  changing
+    ov_row_count type i
+    os_alv type ty_s_alv.
+
+  Data:
+    lt_selected_rows type lvc_t_roid,
+    ls_selected_row type lvc_s_roid,
+    ls_data type ty_s_data,
+    lt_log_data type ty_t_log.
+
+  Clear ov_row_count.
+
+  Call method ir_alv->get_selected_rows
+    importing
+      et_row_no = lt_selected_rows.
+
+  If lt_selected_rows is initial.
+    ov_row_count = -1.
+    Exit.
+  Endif.
+
+"Выбрать данные из журнала для первой выделенной строки
+  Read table lt_selected_rows into ls_selected_row index 1.
+  Read table it_data into ls_data index ls_selected_row-row_id.
+  Perform get_log_data
+    using ls_data
+    changing lt_log_data
+             ov_row_count.
+
+  If ov_row_count is initial.
+    Exit.
+  Endif.
+
+"Показать данные, выбранные во внутреннюю таблицу lt_log_data
+
+  Perform alv_2_display
+    using gc_true
+    changing lt_log_data
+             os_alv-log.
+
+Endform. "show_log
+
+*&-------------------------------------------------------------------*
+*&   Заполнить внутреннюю таблицу данными из таблицы с журналом изменений
+*&
+*&  -> is_query = структура с заполненными полями, ограничивающими выбор из БД
+*& <-> ot_data = внутренняя таблица (источник задан константой — ZPMP006_3)
+*& <-> ov_count = количество строк, выбранных из БД во внутреннюю таблицу
+*&-------------------------------------------------------------------*
+Form get_log_data
+  using
+    is_query type ty_s_data
+  changing
+    ot_data type ty_t_log
+    ov_count type i.
+
+"Select перезаписывает таблицу ot_data
+  Select *
+    from ZPMP006_3
+    into corresponding fields of table ot_data
+    where UNIQUE_INDEX = is_query-unique_index.
+  ov_count = sy-dbcnt.
+
+Endform. "get_log_data
