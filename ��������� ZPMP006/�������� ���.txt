@@ -32,7 +32,7 @@ Constants:
   gc_asterisk type c length 1 value '*',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '56',
+    minor type n length 2 value '57',
   end of gc_version,
   begin of gcs,
     insert_failed type i value '85', "Не удалось сохранить добавленные записи
@@ -1438,9 +1438,12 @@ Form save_data
 
   Data:
     lv_data_is_valid type c length 1,
-    lt_del_rows type ty_t_data, "строки, которые были удалены после вызова
-    lt_ins_rows type ty_t_data, "-//- вставлены
-    lt_mod_rows type ty_t_data, "-//- изменены
+  "Строки, которые после вызова метода cl_gui_alv_grid->check_changed_data...
+    lt_del_rows type ty_t_data, "... оказались удалены из грида
+    lt_ins_rows type ty_t_data, "... оказались вставлены в грид
+    lt_mod_rows type ty_t_data, "... оказались изменены в гриде (новые значения)
+    lt_mod_rows_old type ty_t_data, "-//- (старые значения)
+  "Кол-во строк, которые оказались удалены/вставлены/изменены в гриде
     begin of ls_num_of,
       deleted type i,
       inserted type i,
@@ -1487,12 +1490,14 @@ Form save_data
     Perform get_rows_with_mod_content
       using ot_data
             ot_data_before
-      changing lt_mod_rows.
+      changing lt_mod_rows
+               lt_mod_rows_old.
 "Определены все удалённые/добавленные/изменённые стандартными средствами строки
 "Перенести к удалённым строкам те из изменённых, что были удалены нестандартно,
 "то есть те, что посчитаны как изменённые стандартно.
   Loop at lt_mod_rows into ls_data_source where alv_deleted = gc_true.
-    Delete lt_mod_rows index sy-tabix. "Удалить из одной таблицы
+    Delete lt_mod_rows index sy-tabix. "Удалить из одной таблицы (новое знач.)
+    Delete lt_mod_rows_old index sy-tabix. "-//- (старое знач.)
     Append ls_data_source to lt_del_rows. "Вставить в другую таблицу
   Endloop.
 
@@ -1510,7 +1515,7 @@ Form save_data
     Message e000(su) with 'Ошибка'
                           sy-subrc
                           'при вызове ZPMP006_1_DELETE.'
-                          'Содержимое таблицы ZPMP006_1 не изменено.'.
+                          'Содержимое базы данных не изменено.'.
     Exit.
   Endif.
   Do.
@@ -1540,7 +1545,7 @@ Form save_data
           Message i000(su)
             with lv_string
                  'блокирует добавление новых записей.'
-                 'Содержимое таблицы ZPMP006_1 не изменено.'
+                 'Содержимое базы данных не изменено.'
                  'Повторите попытку'.
           Exit. "Выйти из цикла Do...Enddo.
         Endif.
@@ -1550,7 +1555,7 @@ Form save_data
         Message e000(su) with 'Ошибка'
                               sy-subrc
                               'при вызове ZPMP006_1_INSERT.'
-                              'Содержимое таблицы ZPMP006_1 не изменено.'.
+                              'Содержимое базы данных не изменено.'.
         Exit.
     Endcase.
   Enddo.
@@ -1571,11 +1576,30 @@ Form save_data
     Message e000(su) with 'Ошибка'
                           sy-subrc
                           'при вызове ZPMP006_1_MODIFY.'
-                          'Содержимое таблицы ZPMP006_1 не изменено.'.
+                          'Содержимое базы данных не изменено.'.
     Exit.
   Endif.
 
-"Подтвердить сделанные в таблице ZPMP006_1 изменения
+"Обновить журнал изменений
+  Call function 'ZPMP006_3_INSERT_TO_LOG'
+    exporting
+      iv_do_commit = gc_false
+      it_ins_rows = lt_ins_rows
+      it_del_rows = lt_del_rows
+      it_mod_rows_old = lt_mod_rows_old
+      it_mod_rows_new = lt_mod_rows
+    exceptions
+      db_error = 1
+      old_new_mismatch_by_key = 2.
+  If sy-subrc <> 0.
+    Message e000(su) with 'Ошибка'
+                          sy-subrc
+                          'при вызове ZPMP006_3_INSERT_TO_LOG.'
+                          'Содержимое базы данных не изменено.'.
+    Exit.
+  Endif.
+
+"Подтвердить изменения, сделанные в таблицах ZPMP006_1 и ZPMP006_3
   Commit work and wait.
 
 "Отчитаться
@@ -1641,28 +1665,30 @@ Form subtract_set
 Endform. "subtract_set
 
 *&-------------------------------------------------------------------*
-*&   Выдать те строки из первой входной таблицы, у которых ключевые поля
-*& совпадают со строками из второй входной таблицы, а содержимое - не
-*& совпадает.
+*&   Выдать те строки из обеих входных таблиц, у которых ключевые поля
+*& совпадают, а содержимое - не совпадает.
 *&
 *&  -> it_set_1 = первая входная таблица
 *&  -> it_set_2 = вторая входная таблица
-*& <-> ot_rows_with_mod_content = искомые строки из первой входной таблицы
+*& <-> ot_mod_rows_from_1 = искомые строки из первой входной таблицы
+*& <-> ot_mod_rows_from_2 = искомые строки из второй входной таблицы
 *&-------------------------------------------------------------------*
 Form get_rows_with_mod_content
   using
     it_set_1 type ty_t_data
     it_set_2 type ty_t_data
   changing
-    ot_rows_with_mod_content type ty_t_data.
+    ot_mod_rows_from_1 type ty_t_data
+    ot_mod_rows_from_2 type ty_t_data.
 
   Data:
     ls_1 type ty_s_data,
     ls_2 type ty_s_data, "#EC NEEDED смотри Read table it_set_2 ниже
-    lt_intersection type ty_t_data, "Пересечение по ключу
+    lt_intersection_1 type ty_t_data, "Пересечение по ключу, содержимое из 1й
+    lt_intersection_2 type ty_t_data, "Пересечение по ключу, содержимое из 2й
     ls_intersection type ty_s_data.
 
-  Refresh ot_rows_with_mod_content.
+  Refresh: ot_mod_rows_from_1, ot_mod_rows_from_2.
 
   Loop at it_set_1 into ls_1.
     Read table it_set_2
@@ -1670,19 +1696,26 @@ Form get_rows_with_mod_content
         mandt = ls_1-mandt
         unique_index = ls_1-unique_index
       into ls_2.
-    If sy-subrc = 0. "Пересечение
-      Append ls_1 to lt_intersection. "содержимое из первой таблицы
+    If sy-subrc = 0. "Пересечение по ключу
+      Append ls_1 to lt_intersection_1. "содержимое из первой таблицы
+      Append ls_2 to lt_intersection_2. "содержимое из второй таблицы
     Endif.
   Endloop.
 
 "Определены строки с совпадающими ключами из первой и второй входной таблицы
 
-  Loop at lt_intersection into ls_intersection.
+  Loop at lt_intersection_1 into ls_intersection.
     Read table it_set_2
       with key table_line = ls_intersection
       into ls_2.
     If sy-subrc <> 0. "Содержимое из 2й таблицы отличается от содержимого 1й
-      Append ls_intersection to ot_rows_with_mod_content.
+      Append ls_intersection to ot_mod_rows_from_1.
+      Read table lt_intersection_2
+        with key
+          mandt = ls_intersection-mandt
+          unique_index = ls_intersection-unique_index
+        into ls_2.
+      Append ls_2 to ot_mod_rows_from_2.
     Endif.
   Endloop.
 

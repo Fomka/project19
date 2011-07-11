@@ -1,0 +1,5 @@
+FUNCTION-POOL ZPMP006_3.                    "MESSAGE-ID ..
+
+Constants:
+  gc_true type boolean value 'X',
+  gc_false type boolean value ' '.

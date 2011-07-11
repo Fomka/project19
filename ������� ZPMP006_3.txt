@@ -1,0 +1,71 @@
+--- Технические параметры настройки
+Имя                ZPMP006_3                       Прозрачн. Таблица
+Краткое описание   Журнал изменений для таблицы ZPMP006_1
+ПоследнИзменение   GUDKOV_TV        11.07.2011
+Статус             акт.             Сохранено
+
+
+Вид данных         APPL1   Переменные данные, прозрачные таблицы
+КатегРазмера       6       Ожидаемые ЗаписиДанн: 600.000 по 1.200.000
+
+Буферизация
++ Буферизация не разреш.
+- Буферизация разрешена, но выключена
+- Буферизация включена
+
+Вид буферизации
+- ОтдЗаписи в буфере
+- Буферизована родовая область  Число ключевых полей  0
+- Полная буферизация
+
+- Запись в журнал изменений данных
+- Доступ к зап. только с Java
+
+--- Краткое описание
+Журнал изменений для таблицы ZPMP006_1
+
+--- Свойства
+Последнее изменение    GUDKOV_TV    11.07.2011
+Пакет                  ZPM0                           класс разработки модуля ПМ
+Язык оригинала         RU Русский
+
+--- Поставка и ведение
+Класс поставки                    C Таб. пользов. настройки, ведёт только клиент, не SAP-импор
+
+Ведение брауз. дан./ракурса табл. X Просмотр/ведение разрешены
+
+--- Поля
+Ключевые поля
+MANDT	MANDT	CLNT	3	0	Мандант
+UNIQUE_INDEX	ZPMP001_1_INDEX	INT4	10	0	Уникальный номер единицы ПО
+CHANGE_DATE	ZPMP006_1_CHANGE_DATE	DATS	8	0	Дата изменения
+CHANGE_TIME	ZPMP006_1_CHANGE_TIME	TIMS	6	0	Время изменения
+CHANGE_NAME	ZPMP006_1_CHANGE_NAME	CHAR	12	0	Автор изменения
+FIELD_NAME	FIELDNAME	CHAR	30	0	Имя поля
+
+Неключевые поля
+FIELD_LABEL	ZPMP006_3_FIELD_LABEL	CHAR	40	0	Метка поля — название поля по-русски
+VALUE_NEW	ZPMP006_3_VALUE	CHAR	80	0	Хранение значений полей из ZPMP006_1 (рассч. на макс. длину)
+VALUE_OLD	ZPMP006_3_VALUE	CHAR	80	0	Хранение значений полей из ZPMP006_1 (рассч. на макс. длину)
+
+--- Справка/проверка знач. ввода
+MANDT	MANDT	CLNT	                              	                                                            		MANDT
+UNIQUE_INDEX	ZPMP006_1_INDEX	INT4	                              	                                                            		ZPM_INDEX
+CHANGE_DATE	ZPMP006_1_CHANGE_DATE	DATS	                              	Справка по значениям ввода на базе типа данных		DATS
+CHANGE_TIME	ZPMP006_1_CHANGE_TIME	TIMS	                              	Справка по значениям ввода на базе типа данных		TIMS
+CHANGE_NAME	ZPMP006_1_CHANGE_NAME	CHAR	                              	                                                            		XUBNAME
+FIELD_NAME	FIELDNAME	CHAR	                              	                                                            		FDNAME
+FIELD_LABEL	ZPMP006_3_FIELD_LABEL	CHAR	                              	                                                            		ZPM_CHAR040_CASE
+VALUE_NEW	ZPMP006_3_VALUE_NEW	CHAR	                              	                                                            		ZPM_CHAR080_CASE
+VALUE_OLD	ZPMP006_3_VALUE_OLD	CHAR	                              	                                                            		ZPM_CHAR080_CASE
+
+--- Поля валюты/количества
+MANDT	MANDT	CLNT	                              	                              	Мандант
+UNIQUE_INDEX	ZPMP006_1_INDEX	INT4	                              	                              	Уникальный номер единицы ПО
+CHANGE_DATE	ZPMP006_1_CHANGE_DATE	DATS	                              	                              	Дата изменения
+CHANGE_TIME	ZPMP006_1_CHANGE_TIME	TIMS	                              	                              	Время изменения
+CHANGE_NAME	ZPMP006_1_CHANGE_NAME	CHAR	                              	                              	Автор изменения
+FIELD_NAME	FIELDNAME	CHAR	                              	                              	Имя поля
+FIELD_LABEL	ZPMP006_3_FIELD_LABEL	CHAR	                              	                              	Метка поля — название поля по-русски
+VALUE_NEW	ZPMP006_3_VALUE_NEW	CHAR	                              	                              	Хранение значений полей из ZPMP006_1 (рассч. на макс. длину)
+VALUE_OLD	ZPMP006_3_VALUE_OLD	CHAR	                              	                              	Хранение значений полей из ZPMP006_1 (рассч. на макс. длину)

@@ -1,0 +1,176 @@
+--- Краткий текст
+Вставить записи в журнал изменений
+
+--- Исходный код
+FUNCTION ZPMP006_3_INSERT_TO_LOG.
+*"----------------------------------------------------------------------
+*"*"Локальный интерфейс:
+*"  IMPORTING
+*"     REFERENCE(IV_DO_COMMIT) TYPE  BOOLEAN DEFAULT ' '
+*"     REFERENCE(IT_INS_ROWS) TYPE  ZPMP006_1_TABLE_TYPE
+*"     REFERENCE(IT_DEL_ROWS) TYPE  ZPMP006_1_TABLE_TYPE
+*"     REFERENCE(IT_MOD_ROWS_OLD) TYPE  ZPMP006_1_TABLE_TYPE
+*"     REFERENCE(IT_MOD_ROWS_NEW) TYPE  ZPMP006_1_TABLE_TYPE
+*"  EXCEPTIONS
+*"      DB_ERROR
+*"      OLD_NEW_MISMATCH_BY_KEY
+*"      FIELD_NAME_NOT_FOUND
+*"----------------------------------------------------------------------
+  Constants:
+  "Список столбцов, изменения в которых записываются в журнал
+    begin of lcs_log,
+      begin of col_name,
+        a01 type fieldname value 'STORT',
+        a02 type fieldname value 'EQUNR',
+        a03 type fieldname value 'TYPE',
+        a04 type fieldname value 'SERGE',
+        a05 type fieldname value 'EQUIPMENT_NAME',
+        a06 type fieldname value 'MANUFACT_NAME',
+        a07 type fieldname value 'MANUFACT_PLACE',
+        a08 type fieldname value 'PROJECT',
+        a09 type fieldname value 'DATE_START',
+        a10 type fieldname value 'SOFTWARE_NAME',
+        a11 type fieldname value 'VERSION_ORIGINAL',
+        a12 type fieldname value 'VERSION_MOD',
+        a13 type fieldname value 'DEV_ENVIRONMENT',
+        a14 type fieldname value 'MOD_CAUSE',
+        a15 type fieldname value 'MOD_WORKER',
+        a16 type fieldname value 'MOD_DATE',
+        a17 type fieldname value 'NUM_OF_COPIES',
+        a18 type fieldname value 'COMMENTARY',
+        a19 type fieldname value 'DELETED',
+      end of col_name,
+      begin of col_label,
+        b01 type zpmp006_3_field_label value 'Местоположение',
+        b02 type zpmp006_3_field_label value 'ЕдОборуд',
+        b03 type zpmp006_3_field_label value 'Тип/модель',
+        b04 type zpmp006_3_field_label value 'Серийный №',
+        b05 type zpmp006_3_field_label value 'Наименование объекта АСУТП',
+        b06 type zpmp006_3_field_label value 'Разработчик, название',
+        b07 type zpmp006_3_field_label value 'Разработчик, местоположение',
+        b08 type zpmp006_3_field_label value '№ проекта',
+        b09 type zpmp006_3_field_label value 'Дата ввода в эксплуатацию',
+        b10 type zpmp006_3_field_label value 'Наименование ПО',
+        b11 type zpmp006_3_field_label value 'Версия оригинала',
+        b12 type zpmp006_3_field_label value 'Версия изменённого ПО',
+        b13 type zpmp006_3_field_label value 'Среда разработки',
+        b14 type zpmp006_3_field_label value 'Причина модернизации',
+        b15 type zpmp006_3_field_label value 'Исполнитель работ',
+        b16 type zpmp006_3_field_label value 'Дата модернизации',
+        b17 type zpmp006_3_field_label value 'Количество копий',
+        b18 type zpmp006_3_field_label value 'Примечание',
+        b19 type zpmp006_3_field_label value 'Строка удалена',
+      end of col_label,
+    end of lcs_log.
+
+  Field-symbols:
+    <f_field_name> type any,  "название поля/столбца из структуры lcs_log-col_name
+    <f_field_label> type any, "заголовок столбца из структуры lcs_log-col_label
+    <f_value_old> type any,   "старое значение поля
+    <f_value_new> type any.   "новое значение поля
+
+  Data:
+    ls_row type zpmp006_1, "строка из таблицы ZPMP006_1 со старыми значениями
+    ls_row_new type zpmp006_1, "строка из таблицы ZPMP006_1 с новыми значениями
+    ls_log_entry type zpmp006_3, "строка журнала
+    lt_log_entries type standard table of zpmp006_3, "список строк журнала
+    lr_error type ref to CX_ROOT.
+
+"Сформировать список строк журнала по строкам, вставленным в ZPMP006_1
+  Loop at it_ins_rows into ls_row.
+  "Поля первичного ключа (мандант, индекс, дата/время/автор изменения)
+    Move-corresponding ls_row to ls_log_entry.
+  "Неключевые поля строки в журнале
+    ls_log_entry-field_name = '*'.
+    ls_log_entry-field_label = 'Все поля'.
+    ls_log_entry-value_new = 'Строка создана'.
+    Clear ls_log_entry-value_old.
+    Append ls_log_entry to lt_log_entries.
+  Endloop.
+
+"Сформировать список строк журнала по строкам, удалённым из ZPMP006_1
+  Loop at it_del_rows into ls_row.
+  "Поля первичного ключа (мандант, индекс, дата/время/автор изменения)
+    Move-corresponding ls_row to ls_log_entry.
+  "Неключевые поля строки в журнале
+    ls_log_entry-field_name = lcs_log-col_name-a19.
+    ls_log_entry-field_label = lcs_log-col_label-b19.
+    ls_log_entry-value_new = 'Установлена метка удаления'.
+    Clear ls_log_entry-value_old.
+    Append ls_log_entry to lt_log_entries.
+  Endloop.
+
+"Сформировать список строк журнала по строкам, изменённым в ZPMP006_1
+  Loop at it_mod_rows_old into ls_row.
+  "Неключевые поля изменённой строки, старые и новые значения
+    Read table it_mod_rows_new into ls_row_new
+      with key mandt = ls_row-mandt
+               unique_index = ls_row-unique_index.
+    If sy-subrc <> 0.
+      Raise old_new_mismatch_by_key.
+    Endif.
+  "В ls_row — старые значения неключевых полей, а в ls_row_new — новые
+  "Поля первичного ключа (мандант, индекс, дата/время/автор изменения)
+    Move-corresponding ls_row_new to ls_log_entry.
+  "Пройти по полям изменённой строки, занести в новую строку журнала изменённые
+    Do.
+      Assign component sy-index
+        of structure lcs_log-col_name "Обрабатывать только заданные поля
+        to <f_field_name>.
+      If sy-subrc <> 0.
+        Exit. "Все заданные поля обработаны, выйти из цикла Do...Enddo.
+      Endif.
+      Assign component sy-index
+        of structure lcs_log-col_label
+        to <f_field_label>.
+      Assign component <f_field_name>
+        of structure ls_row
+        to <f_value_old>.
+      If sy-subrc <> 0.
+        Raise field_name_not_found.
+      Endif.
+      Assign component <f_field_name>
+        of structure ls_row_new
+        to <f_value_new>.
+    "Cравнить содержимое
+      If <f_value_old> <> <f_value_new>.
+      "Подготовить в строке журнала данные об изменённом поле:
+        ls_log_entry-field_name = <f_field_name>.   "его название
+        ls_log_entry-field_label = <f_field_label>. "его заголовок
+        Case ls_log_entry-field_name.
+          When lcs_log-col_name-a19.
+          "Отменена метка удаления (установка метки — список удалённых строк)
+            ls_log_entry-value_new = 'Снята метка удаления'.
+            Clear ls_log_entry-value_old.
+          When others.
+            ls_log_entry-value_new = <f_value_new>.
+            ls_log_entry-value_old = <f_value_old>.
+        Endcase.
+      "Занести новую строку журнала в список строк для сохранения
+        Append ls_log_entry to lt_log_entries.
+      Endif.
+    Enddo.
+  Endloop.
+
+"Список строк журнала сформирован, вставить его в т. ZPMP006_3 без блокировок
+  Try.
+    Insert ZPMP006_3
+      from table lt_log_entries.
+  Catch CX_SY_OPEN_SQL_DB into lr_error.
+  "Если произошла ошибка, то отменить все изменения и выйти
+    Rollback work.
+    Raise db_error.
+  Endtry.
+
+  If sy-subrc <> 0.
+  "Если произошла ошибка, то отменить все изменения и выйти
+    Rollback work.
+    Raise db_error.
+  Endif.
+
+"Успешно вставлены все строки — подтвердить все изменения
+  If iv_do_commit = gc_true.
+    Commit work and wait.
+  Endif.
+
+ENDFUNCTION.
