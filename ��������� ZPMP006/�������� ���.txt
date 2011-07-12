@@ -32,7 +32,7 @@ Constants:
   gc_asterisk type c length 1 value '*',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '59',
+    minor type n length 2 value '60',
   end of gc_version,
   begin of gcs,
     insert_failed type i value '85', "Не удалось сохранить добавленные записи
@@ -2777,7 +2777,7 @@ Form show_log
 
 "Показать выбранные данные
   Perform alv_2_display
-    using gc_true
+    using gs_permissions-all
     changing ot_log_data
              os_alv-log.
 
