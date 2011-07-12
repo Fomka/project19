@@ -32,7 +32,7 @@ Constants:
   gc_asterisk type c length 1 value '*',
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '61',
+    minor type n length 2 value '64',
   end of gc_version,
   begin of gcs,
     insert_failed type i value '85', "Не удалось сохранить добавленные записи
@@ -108,10 +108,12 @@ Constants:
       begin of data_change, "Экран для изменения записей, режим CHANGE
         number type i value 20,
         title type gui_title value '0020',
+        title_with_deleted type gui_title value '0021',
       end of data_change,
       begin of data_view, "Экран для просмотра записей, режим VIEW
         number type i value 30,
         title type gui_title value '0030',
+        title_with_deleted type gui_title value '0031',
       end of data_view,
       begin of sel_screen,
         number type i value 1000,
@@ -574,7 +576,11 @@ Module init_screen output. "Общий для всех экранов — уст
 
     When gcs-screens-data_change-number.
       Set pf-status gcs-screens-status-save. "Минимум + сохранение
-      Set titlebar gcs-screens-data_change-title.
+      If p_show_d = gc_true.
+        Set titlebar gcs-screens-data_change-title_with_deleted.
+      Else.
+        Set titlebar gcs-screens-data_change-title.
+      Endif.
       Perform alv_1_display
         using gs_permissions-all
               p_show_d
@@ -586,7 +592,11 @@ Module init_screen output. "Общий для всех экранов — уст
       Move gt_data to gt_data_before. "Запомнить содержимое до изменений, 2 из 3
 
     When gcs-screens-data_view-number.
-      Set titlebar gcs-screens-data_view-title.
+      If p_show_d = gc_true.
+        Set titlebar gcs-screens-data_view-title_with_deleted.
+      Else.
+        Set titlebar gcs-screens-data_view-title.
+      Endif.
       Perform alv_1_display
         using gs_permissions-all
               p_show_d
@@ -2657,8 +2667,8 @@ Form alv_2_display
   If os_alv-r_grid is initial.
     Create object os_alv-r_cont
       exporting
-        width         = 640
-        height        = 200
+        width         = 792
+        height        = 216
         repid         = sy-repid
         dynnr         = sy-dynnr
         top           = 100
