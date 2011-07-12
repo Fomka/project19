@@ -59,7 +59,7 @@ FUNCTION ZPMP006_3_INSERT_TO_LOG.
         b16 type zpmp006_3_field_label value 'Дата модернизации',
         b17 type zpmp006_3_field_label value 'Количество копий',
         b18 type zpmp006_3_field_label value 'Примечание',
-        b19 type zpmp006_3_field_label value 'Строка удалена',
+        b19 type zpmp006_3_field_label value 'МТКУ',
       end of col_label,
     end of lcs_log.
 
