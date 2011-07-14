@@ -26,14 +26,19 @@
 *--------------------------------------------------------------------*
 Report  ZPMP006.
 
+Tables:
+  ZPMP006_1.
+
 Constants:
   gc_true type boolean value 'X',
   gc_false type boolean value ' ',
   gc_asterisk type c length 1 value '*',
+"Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '64',
+    minor type n length 2 value '65',
   end of gc_version,
+"Глобальная структура с константами
   begin of gcs,
     insert_failed type i value '85', "Не удалось сохранить добавленные записи
   "Блокировки (функциональные модули ENQUEUE_*, DEQUEUE_*)
@@ -67,6 +72,7 @@ Constants:
         contains_pattern type c length 2 value 'CP',
       end of option,
     end of so,
+  "Коды полномочий в таблице ZPM_USR
     begin of permission_string,
       create type ZPM_USR-OPERATION value 'CREATE',
       change type ZPM_USR-OPERATION value 'CHANGE',
@@ -74,47 +80,58 @@ Constants:
       delete type ZPM_USR-OPERATION value 'DELETE',
       all type ZPM_USR-OPERATION value 'ALL',
     end of permission_string,
+  "Коды команд
     begin of commands,
-      begin of alv, "Для ALV-грида
+    "Для ALV-грида
+      begin of alv,
         delete type sy-ucomm value 'DELETE',
         undelete type sy-ucomm value 'UNDELETE',
         excel type sy-ucomm value 'EXCEL',
         show_log type sy-ucomm value 'LOG',
       end of alv,
-      "Общие для всех экранов
+    "Общие для всех экранов
       help type sy-ucomm value 'HELP',
       version type sy-ucomm value 'VERSION',
-      begin of sel_screen, "Для экрана выбора
+    "Начальный экран, экран выбора
+      begin of sel_screen,
         goto_new type sy-ucomm value 'GOTO_NEW', "Изменил? Ищи user-command goto_new
         goto_search type sy-ucomm value 'GOTO_SEARCH', "Изменил? Ищи user-command goto_search
         online type sy-ucomm value 'ONLI',
       end of sel_screen,
+    "Экран для ввода новых записей, режим CREATE
+      begin of create_screen,
+        save type sy-ucomm value 'SAVE',
+      end of create_screen,
+    "Экран для изменения записей, режим CHANGE
       begin of change_screen,
         save type sy-ucomm value 'SAVE',
       end of change_screen,
-      begin of new_screen,
-        save type sy-ucomm value 'SAVE',
-      end of new_screen,
     end of commands,
+  "Номера экранов, gui-заголовков и gui-статусов
     begin of screens,
+    "gui-статусы
       begin of status,
         min type gui_status value '0001', "Минимум функций
         save type gui_status value '0002',"То же + сохранение
       end of status,
-      begin of data_create, "Экран для ввода новых записей, режим CREATE
+    "Экран для ввода новых записей, режим CREATE
+      begin of data_create,
         number type i value 10,
         title type gui_title value '0010',
       end of data_create,
-      begin of data_change, "Экран для изменения записей, режим CHANGE
+    "Экран для изменения записей, режим CHANGE
+      begin of data_change,
         number type i value 20,
         title type gui_title value '0020',
         title_with_deleted type gui_title value '0021',
       end of data_change,
-      begin of data_view, "Экран для просмотра записей, режим VIEW
+    "Экран для просмотра записей, режим VIEW
+      begin of data_view,
         number type i value 30,
         title type gui_title value '0030',
         title_with_deleted type gui_title value '0031',
       end of data_view,
+    "Начальный экран, экран выбора
       begin of sel_screen,
         number type i value 1000,
         group_create type screen-group1 value 'CRE',"Изменил? Ищи modif id CRE
@@ -123,16 +140,20 @@ Constants:
         group_stort_restriction_1 type screen-group1 value 'ID1',"Изменил? Ищи modif id ID1
         group_stort_restriction_2 type screen-group1 value 'ID2',"Изменил? Ищи modif id ID2
       end of sel_screen,
+    "Экран для просмотра журнала изменений
       begin of log,
         number type dynnr value 40,
       end of log,
     end of screens,
-    begin of alv, "общее для гридов (ALV-Grid)
+  "Общее для гридов (ALV-Grid)
+    begin of alv,
+    "Цвет
       begin of color,
         default type c length 4 value '', "белый для режима редактирования
         lightred type c length 4 value 'C600', "красный (6), не усиленный (0)
         red type c length 4 value 'C610', "красный (6), усиленный (1)
       end of color,
+    "Строка кнопок, панель инструментов
       begin of toolbar,
         begin of button_type,
           normal type stb_button-butn_type value 0, "Обычная кнопка
@@ -144,25 +165,38 @@ Constants:
           menu_entry type stb_button-butn_type value 6, "Элемент меню
         end of button_type,
       end of toolbar,
-      begin of variant_save_modes, "Как можно сохранять внешний вид грида?
+    "Как можно сохранять внешний вид грида?
+      begin of variant_save_modes,
         only_user type c length 1 value 'U', " только для пользователя — 'U'
         only_global type c length 1 value 'X',  "только глобально — 'X'
         all type c length 1 value 'A',          "обоими способами — 'A'
       end of variant_save_modes,
-      begin of stable_refresh, "при обновлении грида не сдвигать полосу прокрутки по ...
+    "При обновлении грида не сдвигать полосу прокрутки по ...
+      begin of stable_refresh,
         row type lvc_s_stbl-row value gc_true, "... вертикали
         col type lvc_s_stbl-col value gc_true, "... горизонтали
       end of stable_refresh,
+    "Внутри грида в режиме просмотра можно выбрать...
       begin of sel_mode,
-        d type lvc_s_layo-sel_mode value 'D', "Можно выбирать отдельную ячейку
+        default type lvc_s_layo-sel_mode value space, "смотри b
+      "... минимум одну отдельную ячейку, нельзя выбрать несколько ячеек
+        a type lvc_s_layo-sel_mode value 'A',
+      "... минимум одну строку или один столбец, нельзя выбрать несколько строк
+        b type lvc_s_layo-sel_mode value 'B',
+      "... минимум одну строку или один столбец, можно выбрать несколько строк
+        c type lvc_s_layo-sel_mode value 'C',
+      "... минимум одну отдельную ячейку, можно выбрать несколько ячеек
+        d type lvc_s_layo-sel_mode value 'D',
       end of sel_mode,
     end of alv,
+  "Коды транзакций и названия идентификаторов параметров на начальном экране
     begin of transactions,
       begin of equip_view,
         tcode type TCODE value 'IE03',
         parid type TPARA-PARAMID value 'EQN',
       end of equip_view,
     end of transactions,
+  "Название таблицы с данными и названия её столбцов
     begin of data_table,
       table_name type TABNAME value 'ZPMP006_1',
       key_mandt type NAME_FELD value 'MANDT',
@@ -193,19 +227,20 @@ Constants:
       alv_deleted type NAME_FELD value 'ALV_DELETED',
     end of data_table,
   end of gcs,
+"Название таблицы с журналом изменений и названия её столбцов
   begin of gcs_log_table, "Вне gcs-* для того, чтобы обращаться к gcs-*
-      table_name type TABNAME value 'ZPMP006_3',
-      key_mandt type NAME_FELD value gcs-data_table-key_mandt,
-      key_unique_index type NAME_FELD value gcs-data_table-key_unique_index,
-      key_change_date type NAME_FELD value gcs-data_table-change_date,
-      key_change_time type NAME_FELD value gcs-data_table-change_time,
-      key_change_name type NAME_FELD value gcs-data_table-change_name,
-      key_field_name type NAME_FELD value 'FIELD_NAME',
-      field_label type NAME_FELD value 'FIELD_LABEL',
-      value_new type NAME_FELD value 'VALUE_NEW',
-      value_old type NAME_FELD value 'VALUE_OLD',
-      alv_row_color type NAME_FELD value gcs-data_table-alv_row_color,
-    end of gcs_log_table.
+    table_name type TABNAME value 'ZPMP006_3',
+    key_mandt type NAME_FELD value gcs-data_table-key_mandt,
+    key_unique_index type NAME_FELD value gcs-data_table-key_unique_index,
+    key_change_date type NAME_FELD value gcs-data_table-change_date,
+    key_change_time type NAME_FELD value gcs-data_table-change_time,
+    key_change_name type NAME_FELD value gcs-data_table-change_name,
+    key_field_name type NAME_FELD value 'FIELD_NAME',
+    field_label type NAME_FELD value 'FIELD_LABEL',
+    value_new type NAME_FELD value 'VALUE_NEW',
+    value_old type NAME_FELD value 'VALUE_OLD',
+    alv_row_color type NAME_FELD value gcs-data_table-alv_row_color,
+  end of gcs_log_table.
 
 *&-------------------------------------------------------------------*
 *& Обработчик событий для всех типов ALV-гридов, объявление
@@ -246,8 +281,10 @@ Types:
   ty_s_data type line of ty_t_data,
   ty_s_log type ZPMP006_3,
   ty_t_log type standard table of ty_s_log,
+"Набор объектов для отображения ALV-гридов
   begin of ty_s_alv,
-    begin of data, "Данные по ПО
+  "Данные по ПО = грид типа 1
+    begin of data,
       r_grid type ref to cl_gui_alv_grid,
       r_handler type ref to lcl_grid_event_handler,
       r_cont type ref to cl_gui_docking_container,
@@ -259,7 +296,8 @@ Types:
       s_vari type disvariant,
       v_save type c,
     end of data,
-    begin of log, "Журнал изменений во всплывающем окне
+  "Журнал изменений во всплывающем окне = грид типа 2
+    begin of log,
       r_grid type ref to cl_gui_alv_grid,
       r_handler type ref to lcl_grid_event_handler,
       r_cont type ref to cl_gui_dialogbox_container, "всплывающее окно
@@ -279,10 +317,10 @@ Data:
   "gv_r_cre – эта глобальная переменная определена как Selection-screen comment
   "gv_r_cha – эта глобальная переменная определена как Selection-screen comment
 
-  gt_data type ty_t_data,
+  gt_data type ty_t_data, "Главная внутренняя таблица с данными
   gt_data_before type ty_t_data, "Состояние gt_data при переходе на экран изменений
-  gt_log_data type ty_t_log,
-  gv_row_count type i,
+  gt_log_data type ty_t_log, "Внутренняя таблица с данными журнала изменений
+  gv_row_count type i, "Количество строк в gt_data после выборки из БД
   begin of gs_permissions,
     create type boolean value gc_false,
     change type boolean value gc_false,
@@ -290,7 +328,7 @@ Data:
     delete type boolean value gc_false,
     all type boolean value gc_false,
   end of gs_permissions,
-  gs_alv type ty_s_alv.
+  gs_alv type ty_s_alv. "Глобальный набор объектов для отображения ALV-гридов
 
 
 *&-------------------------------------------------------------------*
@@ -298,48 +336,64 @@ Data:
 *&-------------------------------------------------------------------*
 Class lcl_grid_event_handler implementation.
   Method handle_toolbar.
-    "Переключение между гридами
+  "Переключение между гридами
     Case sender.
       When gs_alv-data-r_grid.
-        Perform alv_1_handle_toolbar using e_object.
+        Perform alv_1_handle_toolbar
+          using e_object
+                .
       When others.
-        Message i000(SU) with 'Событие toolbar' 'не обрабатывается для этого ALV-Grid''а'.
+        Message i000(SU)
+          with 'Событие toolbar'
+               'не обрабатывается для этого ALV-Grid''а'.
     Endcase.
   Endmethod.
   Method handle_user_command.
-    "Переключение между гридами
+  "Переключение между гридами
     Case sender.
       When gs_alv-data-r_grid.
-        Perform alv_1_handle_user_command using sender e_ucomm.
+        Perform alv_1_handle_user_command
+          using sender
+                e_ucomm
+                .
       When others.
-        Message i000(SU) with 'Событие toolbar' 'не обрабатывается для этого ALV-Grid''а'.
+        Message i000(SU)
+          with 'Событие toolbar'
+               'не обрабатывается для этого ALV-Grid''а'.
     Endcase.
   Endmethod.
   Method handle_hotspot_click.
-    "Переключение между гридами
+  "Переключение между гридами
     Case sender.
       When gs_alv-data-r_grid.
         Perform alv_1_handle_hotspot_click
           using e_column_id
                 es_row_no
-                gt_data.
+                gt_data
+                .
       When others.
-        Message i000(SU) with 'Событие hotspot_click' 'не обрабатывается для этого ALV-Grid''а'.
+        Message i000(SU)
+          with 'Событие hotspot_click'
+               'не обрабатывается для этого ALV-Grid''а'.
     Endcase.
   Endmethod.
   Method handle_double_click.
-    "Переключение между гридами
+  "Переключение между гридами
     Case sender.
       When gs_alv-data-r_grid.
         Perform alv_1_handle_double_click
           using e_column
                 es_row_no
-                gt_data.
+                gt_data
+                .
       When others.
-        Message i000(SU) with 'Событие double_click' 'не обрабатывается для этого ALV-Grid''а'.
+        Message i000(SU)
+          with 'Событие double_click'
+               'не обрабатывается для этого ALV-Grid''а'.
     Endcase.
   Endmethod.
   Method handle_onf4.
+  "Переключение между гридами
     Case sender.
       When gs_alv-data-r_grid.
         Case e_fieldname.
@@ -363,7 +417,8 @@ Class lcl_grid_event_handler implementation.
                     lt_restrictions
                     .
           When gcs-data_table-equnr. "Единица оборудования
-            Data: ls_data_row type ty_s_data.
+            Data:
+              ls_data_row type ty_s_data.
           "Считать строку, в которой стоит курсор
             Read table gt_data into ls_data_row index es_row_no-row_id.
           "Показать свою помощь по вводу
@@ -373,10 +428,14 @@ Class lcl_grid_event_handler implementation.
                     er_event_data
                     .
           When others.
-            Message i000(SU) with 'Событие onf4' 'не обрабатывается для этого поля'.
+            Message i000(SU)
+              with 'Событие onf4'
+                   'не обрабатывается для этого поля'.
         Endcase.
       When others.
-        Message i000(SU) with 'Событие onf4' 'не обрабатывается для этого ALV-Grid''а'.
+        Message i000(SU)
+          with 'Событие onf4'
+               'не обрабатывается для этого ALV-Grid''а'.
     Endcase.
   Endmethod.
   Method handle_data_changed.
@@ -384,30 +443,37 @@ Class lcl_grid_event_handler implementation.
       When gs_alv-data-r_grid.
         "Использовать экземпляр класса, передаваемый через сообщение
         Perform alv_1_handle_data_changed
-          using er_data_changed.
+          using er_data_changed
+                .
       When others.
-        Message i000(SU) with 'Событие data_changed' 'не обрабатывается для этого ALV-Grid''а'.
+        Message i000(SU)
+          with 'Событие data_changed'
+               'не обрабатывается для этого ALV-Grid''а'.
     Endcase.
   Endmethod.
   Method  on_dialogbox_close.
-    Perform exit_screen using gcs-screens-log-number.
+    Perform exit_screen
+      using gcs-screens-log-number
+            .
   Endmethod.
 Endclass.
 
-
-Tables:
-  ZPMP006_1.
-
+*--- Экран выбора ------------------------------------------------------------*
 "Блок для CREATE (операция "Добавить")
 Selection-screen begin of block b01 with frame.
-  Selection-screen pushbutton /1(40) text-001 user-command goto_new modif id CRE. "Добавить
-  Selection-screen comment 42(40) gv_r_cre modif id CRE.
+  Selection-screen pushbutton /1(40)
+    text-001
+    user-command goto_new
+    modif id CRE. "Добавить
+  Selection-screen comment 42(40) gv_r_cre
+    modif id CRE.
 Selection-screen end of block b01.
 
 "Блок для CHANGE/VIEW (операции "Изменить", "Просмотреть")
 Selection-screen begin of block b02 with frame.
   Selection-screen begin of block b10 with frame title text-010.
-    Selection-screen comment 1(40) gv_r_cha modif id ID2.
+    Selection-screen comment 1(40) gv_r_cha
+      modif id ID2.
     Select-options:
       so1_strt for ZPMP006_1-STORT modif id ID1,
       so1_eqnr for ZPMP006_1-EQUNR,
@@ -448,32 +514,54 @@ Selection-screen begin of block b02 with frame.
         "о наличии ограничений для операции CREATE в статусной строке не
         "перебивалось аналогичным сообщением для операции CHANGE
     .
-  Selection-screen pushbutton /1(40) text-004 user-command goto_search. "Искать
+  Selection-screen pushbutton /1(40)
+    text-004
+    user-command goto_search. "Искать
 Selection-screen end of block b02.
 
+*--- При запуске программы, выполняется однократно ---------------------------*
 Initialization.
   gs_permissions-view = gc_true. "Нет проверки полномочий на просмотр — смотрят все
   Perform check_permission
-    using sy-repid sy-uname gcs-permission_string-change gcs-permission_string-all
-    changing gs_permissions-change.
+    using sy-repid
+          sy-uname
+          gcs-permission_string-change
+          gcs-permission_string-all
+    changing gs_permissions-change
+          .
   Perform check_permission
-    using sy-repid sy-uname gcs-permission_string-create gcs-permission_string-all
-    changing gs_permissions-create.
+    using sy-repid
+          sy-uname
+          gcs-permission_string-create
+          gcs-permission_string-all
+    changing gs_permissions-create
+          .
   Perform check_permission
-    using sy-repid sy-uname gcs-permission_string-delete gcs-permission_string-all
-    changing gs_permissions-delete.
+    using sy-repid
+          sy-uname
+          gcs-permission_string-delete
+          gcs-permission_string-all
+    changing gs_permissions-delete
+          .
   Perform check_permission
-    using sy-repid sy-uname gcs-permission_string-all gcs-permission_string-all
-    changing gs_permissions-all.
+    using sy-repid
+          sy-uname
+          gcs-permission_string-all
+          gcs-permission_string-all
+    changing gs_permissions-all
+          .
   "Не пускать, если нет ни полномочий на VIEW, ни на любое другое действие
-  If gs_permissions-view   = gc_false and gs_permissions-change = gc_false and
-     gs_permissions-create = gc_false and gs_permissions-delete = gc_false.
+  If gs_permissions-view   = gc_false and
+     gs_permissions-change = gc_false and
+     gs_permissions-create = gc_false and
+     gs_permissions-delete = gc_false.
 
     "Сообщение типа E в событии Initialization равнозначно выходу из программы
-    Message e000(SU) with 'У пользователя'
-                          sy-uname
-                          'недостаточно полномочий на работу с программой'
-                          sy-repid.
+    Message e000(SU)
+      with 'У пользователя'
+           sy-uname
+           'недостаточно полномочий на работу с программой'
+           sy-repid.
   Endif.
 
 "Показать ограничения или их отсутствие для операции CREATE
@@ -482,47 +570,65 @@ Initialization.
     If gs_permissions-all <> gc_true.
     "Нет полномочий на всё, выбрать ограничения для операции CREATE
       Perform get_op_restrictions
-        using sy-repid sy-uname gcs-permission_string-create 'STORT'
-        changing gt_create_stort_restrictions.
+        using sy-repid
+              sy-uname
+              gcs-permission_string-create
+              'STORT'
+        changing gt_create_stort_restrictions
+              .
     Endif.
     If gt_create_stort_restrictions is initial.
     "Нет ограничений на местоположение для операции CREATE
       Perform show_create_stort_full.
     Else.
     "Показать один раз сообщение об ограничениях в статусной строке
-      Message s000(su) with 'Действуют ограничения на местоположение'
-                            'для операции "Добавить"'.
+      Message s000(su)
+        with 'Действуют ограничения на местоположение'
+             'для операции "Добавить"'.
     "Задать один раз (не меняется далее) поясняющий текст (блок для CREATE)
       Perform show_create_stort_restricted
-        using gt_create_stort_restrictions.
+        using gt_create_stort_restrictions
+              .
     Endif.
   Endif.
 "Показать ограничения или их отсутствие для операции CHANGE
-  If gs_permissions-change = gc_true and gs_permissions-all <> gc_true.
+  If gs_permissions-change = gc_true and
+     gs_permissions-all <> gc_true.
   "Есть полномочия на операцию CHANGE и нет полномочий на всё
   "Выбрать ограничения для операции CHANGE
     Perform get_op_restrictions
-      using sy-repid sy-uname gcs-permission_string-change 'STORT'
-      changing gt_change_stort_restrictions.
+      using sy-repid
+            sy-uname
+            gcs-permission_string-change
+            'STORT'
+      changing gt_change_stort_restrictions
+            .
   Endif.
 
-*--- Перед отображением экрана выбора
+*--- Перед отображением экрана выбора ----------------------------------------*
 At selection-screen output.
   If gs_permissions-create <> gc_true.
-    Perform hide_screen_element_group using gcs-screens-sel_screen-group_create.
+    Perform hide_screen_element_group
+      using gcs-screens-sel_screen-group_create
+            .
   Endif.
   If gs_permissions-change <> gc_true.
-    Perform hide_screen_element_group using gcs-screens-sel_screen-group_change.
+    Perform hide_screen_element_group
+      using gcs-screens-sel_screen-group_change
+            .
   Endif.
 "Спрятать то, чему требуются полномочия на всё, если этих полномочий нет
   If gs_permissions-all <> gc_true.
-    Perform hide_screen_element_group using gcs-screens-sel_screen-group_all.
+    Perform hide_screen_element_group
+      using gcs-screens-sel_screen-group_all
+            .
   Endif.
 
 "Определить, как показывать параметр "Местоположение" (блок для CHANGE/VIEW)
   If gs_permissions-all = gc_true or
      p_tog_ch <> gc_true or
-    ( p_tog_ch = gc_true and gt_change_stort_restrictions is initial ).
+     ( p_tog_ch = gc_true and
+       gt_change_stort_restrictions is initial ).
   "Ограничения на местоположение не действуют, так как
   " либо 1) есть полномочия на всё (ALL)
   " либо 2) режим изменения выключен,
@@ -530,23 +636,36 @@ At selection-screen output.
     Perform show_change_stort_full.
   Else.
   "Действуют ограничения на местоположение
-    Message s000(su) with 'Действуют ограничения на местоположение'
-                          'для операции "Изменить"'.
-    Perform show_change_stort_restricted using gt_change_stort_restrictions.
+    Message s000(su)
+      with 'Действуют ограничения на местоположение'
+           'для операции "Изменить"'.
+    Perform show_change_stort_restricted
+      using gt_change_stort_restrictions.
   Endif.
 
 *--- Реакция на нажатие кнопок на экране выбора ------------------------------*
 At selection-screen.
-  Perform dispatch_user_command using sy-dynnr changing sy-ucomm.
+  Perform dispatch_user_command
+    using sy-dynnr
+    changing sy-ucomm
+          .
 
 *--- Нажатие "Выполнить" (F8) на экране выбора (sy-ucomm = 'ONLI') -----------*
 Start-of-selection.
-  Perform get_data using p_show_d changing gt_data gv_row_count.
+  Perform get_data
+    using p_show_d
+    changing gt_data
+             gv_row_count
+          .
   If gv_row_count = 0. "Обработать результат выборки из БД, вхождение 1 из 3
-    Message i000(SU) with 'Не найдено ни одной записи'.
+    Message i000(SU)
+      with 'Не найдено ни одной записи'.
     Exit.
   Else.
-    Message s000(SU) with 'Записей найдено:' gv_row_count 'шт.'.
+    Message s000(SU)
+      with 'Записей найдено:'
+           gv_row_count
+           'шт.'.
   Endif.
 
 
@@ -566,7 +685,9 @@ Module init_screen output. "Общий для всех экранов — уст
       Perform alv_1_display
         using gs_permissions-all
               p_show_d
-        changing gt_data gs_alv-data.
+        changing gt_data
+                 gs_alv-data
+              .
       Call method gs_alv-data-r_grid->set_ready_for_input
         exporting
           i_ready_for_input = 1
@@ -584,7 +705,9 @@ Module init_screen output. "Общий для всех экранов — уст
       Perform alv_1_display
         using gs_permissions-all
               p_show_d
-        changing gt_data gs_alv-data.
+        changing gt_data
+                 gs_alv-data
+              .
       Call method gs_alv-data-r_grid->set_ready_for_input
         exporting
           i_ready_for_input = 1
@@ -600,23 +723,33 @@ Module init_screen output. "Общий для всех экранов — уст
       Perform alv_1_display
         using gs_permissions-all
               p_show_d
-        changing gt_data gs_alv-data.
+        changing gt_data
+                 gs_alv-data
+              .
       Call method gs_alv-data-r_grid->set_ready_for_input
         exporting
           i_ready_for_input = 0
           .
 
     When others.
-      Message i000(SU) with 'Отображение ALV-Grid''а на экране' sy-dynnr 'не сделано'.
+      Message i000(SU)
+        with 'Отображение ALV-Grid''а на экране'
+             sy-dynnr
+             'не сделано'.
   Endcase.
 Endmodule. "init_screen
 
 Module dispatch_user_command input.
-  Perform dispatch_user_command using sy-dynnr changing sy-ucomm.
+  Perform dispatch_user_command
+    using sy-dynnr
+    changing sy-ucomm
+          .
 Endmodule. "dispatch_user_command
 
 Module exit_screen input. "Общий для всех экранов — обработать команду выхода
-  Perform exit_screen using sy-dynnr.
+  Perform exit_screen
+    using sy-dynnr
+          .
 Endmodule. "exit_screen
 *--- Экранные модули, конец --------------------------------------------------*
 
@@ -647,7 +780,9 @@ Form dispatch_user_command
       Perform show_help.
       Exit.
     When gcs-commands-version.
-      Perform show_version using gc_version.
+      Perform show_version
+        using gc_version
+              .
       Exit.
     When others.
       "Команда не найдена в списке команд, общих для всех экранов.
@@ -665,12 +800,20 @@ Form dispatch_user_command
           Call screen gcs-screens-data_create-number.
 
         When gcs-commands-sel_screen-goto_search.
-          Perform get_data using p_show_d changing gt_data gv_row_count.
+          Perform get_data
+            using p_show_d
+            changing gt_data
+                     gv_row_count
+                  .
           If gv_row_count = 0. "Обработать результат выборки из БД, вхождение 2 из 3
-            Message i000(SU) with 'Не найдено ни одной записи'.
+            Message i000(SU)
+              with 'Не найдено ни одной записи'.
             Exit.
           Else.
-            Message s000(SU) with 'Записей найдено:' gv_row_count 'шт.'.
+            Message s000(SU)
+              with 'Записей найдено:'
+                   gv_row_count
+                   'шт.'.
           Endif.
 
           If gc_true = p_tog_ch.
@@ -698,7 +841,8 @@ Form dispatch_user_command
               "Перейти на экран CHANGE
                 Call screen gcs-screens-data_change-number.
               When 1.
-                Concatenate 'Пользователь' sy-msgv1
+                Concatenate 'Пользователь'
+                            sy-msgv1
                   into lv_string
                   separated by space.
                 Message s000(su)
@@ -712,7 +856,10 @@ Form dispatch_user_command
                 Message id sy-msgid
                   type sy-msgty
                   number sy-msgno
-                  with sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+                  with sy-msgv1
+                       sy-msgv2
+                       sy-msgv3
+                       sy-msgv4.
                 Exit.
             Endcase.
           Else.
@@ -733,17 +880,24 @@ Form dispatch_user_command
 
     When gcs-screens-data_create-number.
       Case lv_ucomm.
-        When gcs-commands-new_screen-save.
+        When gcs-commands-create_screen-save.
           Perform save_data
             using gs_alv-data
             changing gt_data_before
-                     gt_data.
+                     gt_data
+                  .
           If sy-subrc <> gcs-insert_failed.
           "Вернуться на экран выбора после успешного сохранения
-            Perform exit_screen using sy-dynnr.
+            Perform exit_screen
+              using sy-dynnr
+                    .
           Endif.
         When others. "Команда не найдена в списке обрабатываемых
-          Message i000(SU) with 'На экране' iv_dynnr 'не обрабатывается команда' lv_ucomm.
+          Message i000(SU)
+            with 'На экране'
+                 iv_dynnr
+                 'не обрабатывается команда'
+                 lv_ucomm.
       Endcase.
 
     When gcs-screens-data_change-number.
@@ -752,18 +906,27 @@ Form dispatch_user_command
           Perform save_data
             using gs_alv-data
             changing gt_data_before
-                     gt_data.
+                     gt_data
+                  .
         "Обновить грид, сохраняя горизонтальную/вертикальную позиции прокрутки
           Call method gs_alv-data-r_grid->refresh_table_display
             exporting
               is_stable = gcs-alv-stable_refresh.
         When others. "Команда не найдена в списке обрабатываемых
-          Message i000(SU) with 'На экране' iv_dynnr 'не обрабатывается команда' lv_ucomm.
+          Message i000(SU)
+            with 'На экране'
+                 iv_dynnr
+                 'не обрабатывается команда'
+                 lv_ucomm.
       Endcase.
 
     "Команды на остальных экранах = на экране со списком ЕО
     When others.
-      Message i000(SU) with 'На экране' iv_dynnr 'не обрабатывается команда' lv_ucomm.
+      Message i000(SU)
+        with 'На экране'
+             iv_dynnr
+             'не обрабатывается команда'
+             lv_ucomm.
   Endcase.
 
   Clear ov_ucomm. "ov_ucomm очищается при успешном завершении подпрограммы
@@ -773,7 +936,8 @@ Endform. "dispatch_user_command
 *&   Показать справку по программе (сейчас это список скрытых команд)
 *&-------------------------------------------------------------------*
 Form show_help.
-  Message i000(SU) with 'Скрытые команды: HELP, VERSION'.
+  Message i000(SU)
+   with 'Скрытые команды: HELP, VERSION'.
 Endform. "show_help
 
 *&-------------------------------------------------------------------*
@@ -788,25 +952,35 @@ Form show_version using ic_version like gc_version.
     lv_substring type string.
 
   Move sy-title to lv_message.
-  Concatenate lv_message ', версия '
-              ic_version-major '.' ic_version-minor
-    into lv_message respecting blanks.
+  Concatenate lv_message
+              ', версия '
+              ic_version-major
+              '.'
+              ic_version-minor
+    into lv_message
+    respecting blanks.
 
   Select single UDAT UNAM
     from TRDIR
     into (lv_changed_date, lv_changed_by)
-    where NAME = sy-repid.
+    where NAME = sy-repid
+         .
   If sy-subrc <> 0.
     lv_substring = 'Последнее изменение неизвестно (таблица TRDIR).'.
   Else.
     Write lv_changed_date to lv_date_string.
-    Concatenate 'Последнее изменение сделано' lv_date_string
-                'пользователем' lv_changed_by
-      into lv_substring separated by space.
+    Concatenate 'Последнее изменение сделано'
+                lv_date_string
+                'пользователем'
+                lv_changed_by
+      into lv_substring
+      separated by space.
   Endif.
 
-  Concatenate lv_message lv_substring
-    into lv_message separated by '. '.
+  Concatenate lv_message
+              lv_substring
+    into lv_message
+    separated by '. '.
   Message lv_message type 'I'.
 Endform. "show_version
 
@@ -857,10 +1031,10 @@ Form exit_screen
 
 "Уничтожить использовавшиеся на экране объекты
   Case i_dynnr.
-
-    When gcs-screens-data_create-number
-      or gcs-screens-data_change-number
-      or gcs-screens-data_view-number.
+  "Экраны с гридом типа 1 — gs_alv-data
+    When gcs-screens-data_create-number or
+         gcs-screens-data_change-number or
+         gcs-screens-data_view-number.
       Try.
         Call method gs_alv-data-r_grid->free.
         Call method gs_alv-data-r_cont->free.
@@ -868,7 +1042,9 @@ Form exit_screen
         Call method lr_exception->if_message~get_text
           receiving
             result = lv_exc_text.
-        Message i000(SU) with 'Исключительная ситуация при вызове методов Free:' lv_exc_text.
+        Message i000(SU)
+         with 'Исключительная ситуация при вызове методов Free:'
+              lv_exc_text.
       Endtry.
       Free: gs_alv-data-r_grid, gs_alv-data-r_cont, gs_alv-data-r_handler,
             gt_data, gt_data_before,
@@ -877,6 +1053,7 @@ Form exit_screen
             gs_alv-data-s_layo, gs_alv-data-s_vari,
             gs_alv-data-v_save.
 
+  "Экран для просмотра журнала изменений, грид типа 2 — gs_alv-log
     When gcs-screens-log-number.
       Try.
         Call method gs_alv-log-r_grid->free.
@@ -885,8 +1062,9 @@ Form exit_screen
         Call method lr_exception->if_message~get_text
           receiving
             result = lv_exc_text.
-        Message i000(SU) with 'Исключительная ситуация при вызове методов Free:'
-                              lv_exc_text.
+        Message i000(SU)
+         with 'Исключительная ситуация при вызове методов Free:'
+              lv_exc_text.
       Endtry.
 
       Free: gs_alv-log-r_grid, gs_alv-log-r_cont, gs_alv-log-r_handler,
@@ -897,7 +1075,9 @@ Form exit_screen
       Exit. "Не возвращаться на предыдущий экран, т.к. screens-log — фиктивный
 
     When others.
-      Message i000(SU) with 'Модуль exit_screen не обрабатывает экран' i_dynnr.
+      Message i000(SU)
+        with 'Модуль exit_screen не обрабатывает экран'
+             i_dynnr.
       Exit.
 
   Endcase.
@@ -930,10 +1110,11 @@ Form check_permission
   Select single *
     from ZPM_USR
     into ls_zpm_usr
-    where PROGNAME = i_program_name
-      and UNAME = i_user_name
-      and ( OPERATION = i_operation or OPERATION = i_all )
-    .
+    where PROGNAME = i_program_name and
+          UNAME = i_user_name and
+          ( OPERATION = i_operation or
+            OPERATION = i_all )
+         .
   If sy-subrc <> 0.
     o_allowed = gc_false.
   Else.
@@ -993,7 +1174,8 @@ Form show_change_stort_restricted
 
 "Скрыть поле множественного выбора SO1_STRT "Местоположение"
   Perform hide_screen_element_group
-    using gcs-screens-sel_screen-group_stort_restriction_1.
+    using gcs-screens-sel_screen-group_stort_restriction_1
+          .
 
 "Задать значения поля из ограничений
   Refresh so1_strt[].
@@ -1006,15 +1188,19 @@ Form show_change_stort_restricted
   Loop at it_restrictions into ls_restriction.
     ls_so1_strt-low = ls_restriction-string.
     Append ls_so1_strt to so1_strt[].
-    Concatenate gv_r_cha ls_restriction-string
+    Concatenate gv_r_cha
+                ls_restriction-string
       into gv_r_cha
       separated by space.
   Endloop.
 
 "Показать ограничения через Selection-screen comment gv_r_cha
-  Concatenate text-005 gv_r_cha into gv_r_cha.
+  Concatenate text-005
+              gv_r_cha
+    into gv_r_cha.
   Perform show_screen_element_group
-    using gcs-screens-sel_screen-group_stort_restriction_2.
+    using gcs-screens-sel_screen-group_stort_restriction_2
+          .
 
 Endform. "show_change_stort_restricted
 
@@ -1031,7 +1217,8 @@ Form show_change_stort_full.
 
 "Показать поле множественного выбора SO1_STRT "Местоположение"
   Perform show_screen_element_group
-    using gcs-screens-sel_screen-group_stort_restriction_1.
+    using gcs-screens-sel_screen-group_stort_restriction_1
+          .
 
 "Очистить поле SO1_STRT
   Refresh so1_strt[].
@@ -1040,7 +1227,8 @@ Form show_change_stort_full.
 "Скрыть Selection-screen comment gv_r_cha
   Clear gv_r_cha.
   Perform hide_screen_element_group
-    using gcs-screens-sel_screen-group_stort_restriction_2.
+    using gcs-screens-sel_screen-group_stort_restriction_2
+          .
 
 Endform. "show_change_stort_full
 
@@ -1056,11 +1244,11 @@ Form show_create_stort_restricted
 "Задать текст для Selection-screen comment gv_r_cre
   gv_r_cre = text-005.
   Loop at it_restrictions into ls_restriction.
-    Concatenate gv_r_cre ls_restriction-string
+    Concatenate gv_r_cre
+                ls_restriction-string
       into gv_r_cre
       separated by space.
   Endloop.
-
 Endform. "show_create_stort_restricted
 
 *&-------------------------------------------------------------------*
@@ -1070,8 +1258,10 @@ Endform. "show_create_stort_restricted
 *&-------------------------------------------------------------------*
 Form show_create_stort_full.
 "Задать текст для Selection-screen comment gv_r_cre
-  Concatenate text-005 'нет' into gv_r_cre separated by space.
-
+  Concatenate text-005
+              'нет'
+    into gv_r_cre
+    separated by space.
 Endform. "show_create_stort_full
 
 *&-------------------------------------------------------------------*
@@ -1104,15 +1294,18 @@ Form get_op_restrictions
 
   Refresh ot_restrictions.
 
-  Concatenate i_restriction_type '%' into lv_SQL_string.
+  Concatenate i_restriction_type
+              '%'
+    into lv_SQL_string.
 
   Select single restrictions
     from ZPM_USR
     into lv_restrictions
-    where PROGNAME = i_program_name
-      and UNAME = i_user_name
-      and OPERATION = i_operation
-      and RESTRICTIONS like lv_SQL_string.
+    where PROGNAME = i_program_name and
+          UNAME = i_user_name and
+          OPERATION = i_operation and
+          RESTRICTIONS like lv_SQL_string
+         .
   If sy-subrc <> 0.
     Exit.
   Endif.
@@ -1147,28 +1340,29 @@ Form get_data
     Select *
       from ZPMP006_1
       into corresponding fields of table ot_data
-      where STORT in so1_strt
-        and EQUNR in so1_eqnr
-        and TYPE in so1_type
-        and SERGE in so1_serg
-        and EQUIPMENT_NAME in so1_name
-        and MANUFACT_NAME in so1_man2
-        and MANUFACT_PLACE in so1_man1
-        and DATE_START in so1_date
-        and PROJECT in so1_proj
-        and SOFTWARE_NAME in so2_name
-        and VERSION_ORIGINAL in so2_vero
-        and VERSION_MOD in so2_verm
-        and DEV_ENVIRONMENT in so2_denv
-        and MOD_CAUSE in so2_mcau
-        and MOD_WORKER in so2_mwor
-        and MOD_DATE in so2_mdat
-        and NUM_OF_COPIES in so2_numc
-        and COMMENTARY in so3_comm
-        and CHANGE_DATE IN so3_chad
-        and CHANGE_TIME IN so3_chat
-        and CHANGE_NAME IN so3_chan
-        and DELETED EQ gc_false.
+      where STORT in so1_strt and
+            EQUNR in so1_eqnr and
+            TYPE in so1_type and
+            SERGE in so1_serg and
+            EQUIPMENT_NAME in so1_name and
+            MANUFACT_NAME in so1_man2 and
+            MANUFACT_PLACE in so1_man1 and
+            DATE_START in so1_date and
+            PROJECT in so1_proj and
+            SOFTWARE_NAME in so2_name and
+            VERSION_ORIGINAL in so2_vero and
+            VERSION_MOD in so2_verm and
+            DEV_ENVIRONMENT in so2_denv and
+            MOD_CAUSE in so2_mcau and
+            MOD_WORKER in so2_mwor and
+            MOD_DATE in so2_mdat and
+            NUM_OF_COPIES in so2_numc and
+            COMMENTARY in so3_comm and
+            CHANGE_DATE in so3_chad and
+            CHANGE_TIME in so3_chat and
+            CHANGE_NAME in so3_chan and
+            DELETED eq gc_false
+         .
     ov_count = sy-dbcnt.
     Exit.
   Endif.
@@ -1176,27 +1370,28 @@ Form get_data
   Select *
     from ZPMP006_1
     into corresponding fields of table ot_data
-    where STORT in so1_strt
-      and EQUNR in so1_eqnr
-      and TYPE in so1_type
-      and SERGE in so1_serg
-      and EQUIPMENT_NAME in so1_name
-      and MANUFACT_NAME in so1_man2
-      and MANUFACT_PLACE in so1_man1
-      and DATE_START in so1_date
-      and PROJECT in so1_proj
-      and SOFTWARE_NAME in so2_name
-      and VERSION_ORIGINAL in so2_vero
-      and VERSION_MOD in so2_verm
-      and DEV_ENVIRONMENT in so2_denv
-      and MOD_CAUSE in so2_mcau
-      and MOD_WORKER in so2_mwor
-      and MOD_DATE in so2_mdat
-      and NUM_OF_COPIES in so2_numc
-      and COMMENTARY in so3_comm
-      and CHANGE_DATE IN so3_chad
-      and CHANGE_TIME IN so3_chat
-      and CHANGE_NAME IN so3_chan.
+    where STORT in so1_strt and
+          EQUNR in so1_eqnr and
+          TYPE in so1_type and
+          SERGE in so1_serg and
+          EQUIPMENT_NAME in so1_name and
+          MANUFACT_NAME in so1_man2 and
+          MANUFACT_PLACE in so1_man1 and
+          DATE_START in so1_date and
+          PROJECT in so1_proj and
+          SOFTWARE_NAME in so2_name and
+          VERSION_ORIGINAL in so2_vero and
+          VERSION_MOD in so2_verm and
+          DEV_ENVIRONMENT in so2_denv and
+          MOD_CAUSE in so2_mcau and
+          MOD_WORKER in so2_mwor and
+          MOD_DATE in so2_mdat and
+          NUM_OF_COPIES in so2_numc and
+          COMMENTARY in so3_comm and
+          CHANGE_DATE in so3_chad and
+          CHANGE_TIME in so3_chat and
+          CHANGE_NAME in so3_chan
+         .
   ov_count = sy-dbcnt.
   Loop at ot_data into ls_data.
     If ls_data-deleted = gc_true.
@@ -1219,13 +1414,14 @@ Endform. "get_data
 *& <-> ot_sort = правила сортировки
 *& <-> os_layout = общие настройки внешнего вида
 *& <-> os_variant = вариант внешнего вида, заданный по умолчанию
+*& <-> ov_save_mode = как позволяется сохранять внешний вид грида
 *&-------------------------------------------------------------------*
 Form alv_1_prepare
   using
     iv_dynnr type sy-dynnr
     iv_can_change_variant type boolean
     iv_show_deleted type boolean
-  changing:
+  changing
     ot_fieldcat type lvc_t_fcat
     ot_sort type lvc_t_sort
     ot_excl type ui_functions
@@ -1250,15 +1446,19 @@ Form alv_1_prepare
       others                       = 1
             .
   If sy-subrc <> 0.
-    Message e000(SU) with 'Ошибка при заполнении fieldcat для ALV на экране' sy-dynnr 'из таблицы' gcs-data_table-table_name.
+    Message e000(SU)
+      with 'Ошибка при заполнении fieldcat для ALV на экране'
+           sy-dynnr
+           'из таблицы'
+           gcs-data_table-table_name.
     Exit.
   Endif.
 
   Loop at ot_fieldcat into ls_fcat.
   "Обработать все столбцы
-    If ls_fcat-fieldname = gcs-data_table-key_mandt
-    or ls_fcat-fieldname = gcs-data_table-key_unique_index
-    or ls_fcat-fieldname = gcs-data_table-deleted.
+    If ls_fcat-fieldname = gcs-data_table-key_mandt or
+       ls_fcat-fieldname = gcs-data_table-key_unique_index or
+       ls_fcat-fieldname = gcs-data_table-deleted.
     "Скрыть столбцы, чьи поля относятся к первичному ключу или к служебным
       ls_fcat-no_out = gc_true.
     Else.
@@ -1291,9 +1491,9 @@ Form alv_1_prepare
 
   "Не показывать столбцы с данными о последнем изменении на экране CREATE
     If iv_dynnr = gcs-screens-data_create-number and
-     ( ls_fcat-fieldname = gcs-data_table-change_date or
-       ls_fcat-fieldname = gcs-data_table-change_time or
-       ls_fcat-fieldname = gcs-data_table-change_name ).
+       ( ls_fcat-fieldname = gcs-data_table-change_date or
+         ls_fcat-fieldname = gcs-data_table-change_time or
+         ls_fcat-fieldname = gcs-data_table-change_name ).
       ls_fcat-no_out = gc_true.
     Endif.
 
@@ -1317,7 +1517,7 @@ Form alv_1_prepare
   If iv_dynnr = gcs-screens-data_change-number.
   "На экране CHANGE отключено добавление новых строк, из-за этого действие
   "кнопок mc_fc_loc_paste и mc_fc_loc_paste_new_row одинаково => одна не нужна
-    ls_excl = cl_gui_alv_grid=>mc_fc_loc_paste_new_row. "Вставить в новую строку"
+    ls_excl = cl_gui_alv_grid=>mc_fc_loc_paste_new_row."Вставить в новую строку
     Append ls_excl to ot_excl.
   Endif.
 
@@ -1333,7 +1533,7 @@ Form alv_1_prepare
     ls_excl = cl_gui_alv_grid=>mc_mb_variant. "Кнопки "Формат" — внешний вид
     Append ls_excl to ot_excl.
   Else.
-  "Оставить кнопки, задать что можно сохранять внешний вид любыми способами
+  "Оставить кнопки и задать, что можно сохранять внешний вид любыми способами
     ov_save_mode = gcs-alv-variant_save_modes-all.
   Endif.
 
@@ -1396,7 +1596,10 @@ Form alv_1_display
         others        = 1
         .
     If sy-subrc <> 0.
-      Message e000(SU) with 'Не удалось создать экземпляр' 'docking-контейнера на экране' sy-dynnr.
+      Message e000(SU)
+        with 'Не удалось создать экземпляр'
+             'docking-контейнера на экране'
+             sy-dynnr.
       Exit.
     Endif.
     Create object os_alv-r_grid
@@ -1406,7 +1609,9 @@ Form alv_1_display
         others            = 1
         .
     If sy-subrc <> 0.
-      Message e000(SU) with 'Не удалось создать экземпляр ALV-Grid''а на экране' sy-dynnr.
+      Message e000(SU)
+        with 'Не удалось создать экземпляр ALV-Grid''а на экране'
+             sy-dynnr.
       Exit.
     Endif.
 
@@ -1419,7 +1624,9 @@ Form alv_1_display
         others     = 1
             .
     If sy-subrc <> 0.
-      Message e000(SU) with 'Исключ. ситуация при вызове' 'os_alv-r_grid->register_edit_event'.
+      Message e000(SU)
+        with 'Исключ. ситуация при вызове'
+             'os_alv-r_grid->register_edit_event'.
       Exit.
     Endif.
 
@@ -1435,7 +1642,8 @@ Form alv_1_display
         os_alv-t_f4
         os_alv-s_layo
         os_alv-s_vari
-        os_alv-v_save.
+        os_alv-v_save
+            .
 
     Create object os_alv-r_handler.
     Set handler os_alv-r_handler->handle_toolbar for os_alv-r_grid.
@@ -1463,10 +1671,11 @@ Form alv_1_display
         others                        = 1
             .
     If sy-subrc <> 0.
-      Message e000(SU) with 'Исключ. ситуация при вызове метода'
-                            'os_alv-r_grid->set_table_for_first_display'
-                            'на экране'
-                            sy-dynnr.
+      Message e000(SU)
+        with 'Исключ. ситуация при вызове метода'
+             'os_alv-r_grid->set_table_for_first_display'
+             'на экране'
+             sy-dynnr.
       Exit.
     Endif.
 
@@ -1529,7 +1738,8 @@ Form save_data
       e_valid   = lv_data_is_valid
       .
   If lv_data_is_valid is initial.
-    Message e000(su) with 'Ошибка в данных, сохранение не выполнено'.
+    Message e000(su)
+      with 'Ошибка в данных, сохранение не выполнено'.
     Exit.
   Endif.
 
@@ -1546,18 +1756,21 @@ Form save_data
     Perform subtract_set  "Из "До" вычесть "После"
       using ot_data_before
             ot_data
-      changing lt_del_rows.
+      changing lt_del_rows
+            .
   "Обработать добавленные строки
     Perform subtract_set  "Из "После" вычесть "До"
       using ot_data
             ot_data_before
-      changing lt_ins_rows.
+      changing lt_ins_rows
+            .
   "Обработать изменённые строки
     Perform get_rows_with_mod_content
       using ot_data
             ot_data_before
       changing lt_mod_rows
-               lt_mod_rows_old.
+               lt_mod_rows_old
+            .
 "Определены все удалённые/добавленные/изменённые стандартными средствами строки
 "Перенести к удалённым строкам те из изменённых, что были удалены нестандартно,
 "то есть те, что посчитаны как изменённые стандартно.
@@ -1578,10 +1791,11 @@ Form save_data
     exceptions
       db_error = 1.
   If sy-subrc <> 0.
-    Message e000(su) with 'Ошибка'
-                          sy-subrc
-                          'при вызове ZPMP006_1_DELETE.'
-                          'Содержимое базы данных не изменено.'.
+    Message e000(su)
+      with 'Ошибка'
+           sy-subrc
+           'при вызове ZPMP006_1_DELETE.'
+           'Содержимое базы данных не изменено.'.
     Exit.
   Endif.
   Do.
@@ -1605,7 +1819,8 @@ Form save_data
       When 2.
       "Вставка была заблокирована, повторить
         If sy-index >= 3. "повторять не более 3 раз
-          Concatenate 'Пользователь' sy-msgv1
+          Concatenate 'Пользователь'
+                      sy-msgv1
             into lv_string
             separated by space.
           Message i000(su)
@@ -1618,10 +1833,11 @@ Form save_data
         Wait up to 1 seconds. "Выдержать интервал в 1 секунду
         Continue.
       When others.
-        Message e000(su) with 'Ошибка'
-                              sy-subrc
-                              'при вызове ZPMP006_1_INSERT.'
-                              'Содержимое базы данных не изменено.'.
+        Message e000(su)
+          with 'Ошибка'
+               sy-subrc
+               'при вызове ZPMP006_1_INSERT.'
+               'Содержимое базы данных не изменено.'.
         Exit.
     Endcase.
   Enddo.
@@ -1639,10 +1855,11 @@ Form save_data
     exceptions
       db_error = 1.
   If sy-subrc <> 0.
-    Message e000(su) with 'Ошибка'
-                          sy-subrc
-                          'при вызове ZPMP006_1_MODIFY.'
-                          'Содержимое базы данных не изменено.'.
+    Message e000(su)
+      with 'Ошибка'
+           sy-subrc
+           'при вызове ZPMP006_1_MODIFY.'
+           'Содержимое базы данных не изменено.'.
     Exit.
   Endif.
 
@@ -1658,10 +1875,11 @@ Form save_data
       db_error = 1
       old_new_mismatch_by_key = 2.
   If sy-subrc <> 0.
-    Message e000(su) with 'Ошибка'
-                          sy-subrc
-                          'при вызове ZPMP006_3_INSERT_TO_LOG.'
-                          'Содержимое базы данных не изменено.'.
+    Message e000(su)
+      with 'Ошибка'
+           sy-subrc
+           'при вызове ZPMP006_3_INSERT_TO_LOG.'
+           'Содержимое базы данных не изменено.'.
     Exit.
   Endif.
 
@@ -1669,10 +1887,11 @@ Form save_data
   Commit work and wait.
 
 "Отчитаться
-  Message i000(su) with 'Удалено/добавлено/изменено строк:'
-                        ls_num_of-deleted
-                        ls_num_of-inserted
-                        ls_num_of-modified.
+  Message i000(su)
+    with 'Удалено/добавлено/изменено строк:'
+         ls_num_of-deleted
+         ls_num_of-inserted
+         ls_num_of-modified.
 
 "Обновить данные в гриде
   Refresh lt_data_source.
@@ -1684,7 +1903,8 @@ Form save_data
     Append lines of lt_del_rows to lt_data_source.
   Endif.
   Loop at lt_data_source into ls_data_source.
-    Read table ot_data into ls_data_destination
+    Read table ot_data
+      into ls_data_destination
       with key unique_index = ls_data_source-unique_index.
     If sy-subrc <> 0.
       Message w000(su)
@@ -1857,8 +2077,11 @@ Form alv_1_handle_data_changed
       importing
         e_value     = lv_equnr.
 
-    Perform check_equnr_is_ok using lv_stort lv_equnr changing lv_equnr_is_ok.
-
+    Perform check_equnr_is_ok
+      using lv_stort
+            lv_equnr
+      changing lv_equnr_is_ok
+            .
     If lv_equnr_is_ok <> gc_true.
       Call method ir_data_changed->add_protocol_entry
         exporting
@@ -1870,9 +2093,7 @@ Form alv_1_handle_data_changed
           i_msgv3 = 'не прошла проверку'
           i_fieldname = ls_mod_cell-fieldname
           i_row_id = ls_mod_cell-row_id.
-
     Endif.
-
   Endloop.
 
 Endform. "alv_1_handle_data_changed
@@ -1945,62 +2166,70 @@ Form alv_1_handle_user_command
 
     When gcs-commands-alv-delete.
       Perform set_unset_deletion_flag
-        using
-          gc_true
-          ir_alv
-        changing
-          gt_data
-          lv_row_count.
+        using gc_true
+              ir_alv
+        changing gt_data
+                 lv_row_count
+              .
       If lv_row_count = -1.
-        Message s000(su) with 'Выберите строки кнопками слева'.
+        Message s000(su)
+          with 'Выберите строки кнопками слева'.
       Else.
-        Message s000(su) with 'Строк помечено на удаление:'
-                              lv_row_count
-                              'шт.'.
+        Message s000(su)
+          with 'Строк помечено на удаление:'
+               lv_row_count
+               'шт.'.
       Endif.
 
     When gcs-commands-alv-undelete.
       Perform set_unset_deletion_flag
-        using
-          gc_false
-          ir_alv
-        changing
-          gt_data
-          lv_row_count.
+        using gc_false
+              ir_alv
+        changing gt_data
+                 lv_row_count
+              .
       If lv_row_count = -1.
-        Message s000(su) with 'Выберите строки кнопками слева'.
+        Message s000(su)
+          with 'Выберите строки кнопками слева'.
       Else.
-        Message s000(su) with 'Удаление отменено для'
-                              lv_row_count
-                              'шт. строк'.
+        Message s000(su)
+          with 'Удаление отменено для'
+               lv_row_count
+               'шт. строк'.
       Endif.
 
     When gcs-commands-alv-excel.
-      Perform export_to_excel using gt_data.
+      Perform export_to_excel
+        using gt_data
+              .
 
     When gcs-commands-alv-show_log.
       Perform show_log
-        using
-          ir_alv
-          gt_data
-        changing
-          gt_log_data
-          lv_row_count
-          gs_alv.
+        using ir_alv
+              gt_data
+        changing gt_log_data
+                 lv_row_count
+                 gs_alv
+              .
       Case lv_row_count.
         When -1.
-          Message s000(su) with 'Выберите строку кнопкой слева'.
+          Message s000(su)
+            with 'Выберите строку кнопкой слева'.
         When 0.
-          Message s000(su) with 'Не найдены данные в журнале изменений'.
+          Message s000(su)
+            with 'Не найдены данные в журнале изменений'.
         When others.
-          Message s000(su) with 'Найдено строк в журнале изменений:'
-                                lv_row_count
-                                'шт.'.
+          Message s000(su)
+            with 'Найдено строк в журнале изменений:'
+                 lv_row_count
+                 'шт.'.
       Endcase.
 
     When others.
-      Message i000(su) with 'Команда' i_ucomm 'пока не обрабатывается'.
-
+      Message i000(su)
+        with 'Команда'
+             i_ucomm
+             'пока не обрабатывается'.
   Endcase.
 
 Endform. "alv_1_handle_user_command
@@ -2084,7 +2313,8 @@ Form check_stort_is_ok
     into lv_stort
     from T499S
     where WERKS = iv_werks
-      and STAND = iv_stort.
+      and STAND = iv_stort
+         .
   If sy-subrc = 0.
     ov_is_ok = gc_true.
   Else.
@@ -2111,12 +2341,14 @@ Form check_equnr_is_ok
   Select max( EQLFN )
     into lv_max_eqlfn "если в один день было несколько записей, взять последнюю
     from ZPMP006_2
-    where EQUNR = iv_equnr.
+    where EQUNR = iv_equnr
+         .
   Select single STORT "#EC * Ключ. полей хватает (в ракурсе DATBI = '9991231')
     into lv_stort
     from ZPMP006_2
-    where EQUNR = iv_equnr
-      and EQLFN = lv_max_eqlfn.
+    where EQUNR = iv_equnr and
+          EQLFN = lv_max_eqlfn
+         .
   If sy-subrc = 0 and
      lv_stort = iv_stort.
   "Актуальное местоположение в единице оборудования совпадает с проверочным
@@ -2145,12 +2377,14 @@ Form alv_1_handle_double_click
     Select single equnr
       from EQUI
       into ls_data-equnr
-      where EQUNR = ls_data-equnr.
+      where EQUNR = ls_data-equnr
+           .
     If sy-subrc <> 0.
-      Message s000(su) with 'Единица оборудования'
-                            ls_data-equnr
-                            'не найдена'
-                       display like 'E'.
+      Message s000(su)
+        with 'Единица оборудования'
+             ls_data-equnr
+             'не найдена'
+        display like 'E'.
       Exit.
     Endif.
   "Единица оборудования существует, вызвать транзакцию просмотра
@@ -2171,7 +2405,8 @@ Form alv_1_handle_hotspot_click
   Perform alv_1_handle_double_click
     using is_column
           is_row_no
-          it_data.
+          it_data
+          .
 Endform. "alv_1_handle_hotspot_click
 
 *&-------------------------------------------------------------------*
@@ -2261,8 +2496,13 @@ Form alv_1_show_f4_stort
             .
   If sy-subrc <> 0.
   "Ошибка, показать сообщение и выйти
-    Message id sy-msgid type sy-msgty number sy-msgno
-        with sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    Message id sy-msgid
+      type sy-msgty
+      number sy-msgno
+      with sy-msgv1
+           sy-msgv2
+           sy-msgv3
+           sy-msgv4.
     Exit.
   Endif.
 
@@ -2339,7 +2579,9 @@ Form alv_1_show_f4_equnr
   If is_data_row-type is not initial. "Тип/модель
     ls_selopt-shlpfield = gcs-data_table-type.
     ls_selopt-option = gcs-so-option-contains_pattern.
-    Concatenate gc_asterisk is_data_row-type gc_asterisk
+    Concatenate gc_asterisk
+                is_data_row-type
+                gc_asterisk
       into ls_selopt-low.
     Append ls_selopt to ls_shlp-selopt.
   Endif.
@@ -2347,7 +2589,9 @@ Form alv_1_show_f4_equnr
   If is_data_row-serge is not initial. "Серийный номер
     ls_selopt-shlpfield = gcs-data_table-serge.
     ls_selopt-option = gcs-so-option-contains_pattern.
-    Concatenate gc_asterisk is_data_row-serge gc_asterisk
+    Concatenate gc_asterisk
+                is_data_row-serge
+                gc_asterisk
       into ls_selopt-low.
     Append ls_selopt to ls_shlp-selopt.
   Endif.
@@ -2355,7 +2599,9 @@ Form alv_1_show_f4_equnr
   If is_data_row-equipment_name is not initial. "Наименование
     ls_selopt-shlpfield = gcs-data_table-equipment_name.
     ls_selopt-option = gcs-so-option-contains_pattern.
-    Concatenate gc_asterisk is_data_row-equipment_name gc_asterisk
+    Concatenate gc_asterisk
+                is_data_row-equipment_name
+                gc_asterisk
       into ls_selopt-low.
     Append ls_selopt to ls_shlp-selopt.
   Endif.
@@ -2374,17 +2620,20 @@ Form alv_1_show_f4_equnr
     When 0.
     "Выбранное значение находится в таблице lt_selected_sh_rows
     When 4.
-      Message s000(su) with 'Значения не найдены'.
+      Message s000(su)
+        with 'Значения не найдены'.
       Exit.
     When 8.
-      Message s000(su) with 'Ничего не выбрано'.
+      Message s000(su)
+        with 'Ничего не выбрано'.
       Exit.
     When others.
-      Message s000(su) with 'Ошибка номер'
-                            lv_rc
-                            'при вызове ФМ F4IF_START_VALUE_REQUEST,'
-                            'сообщите разработчикам'
-                       display like 'E'.
+      Message s000(su)
+        with 'Ошибка номер'
+             lv_rc
+             'при вызове ФМ F4IF_START_VALUE_REQUEST,'
+             'сообщите разработчикам'
+        display like 'E'.
       Exit. "Выйти из подпрограммы
   Endcase.
 
@@ -2458,7 +2707,8 @@ Form export_to_excel using it_data like gt_data.
 
 "Сформировать название диапазона, куда будут вставляться строки
   "В строку типа 1 первой таблицы
-  Concatenate lc_list_name lc_t1-row1-name
+  Concatenate lc_list_name
+              lc_t1-row1-name
     into lv_workarea_name
     separated by '!'.
 
@@ -2473,7 +2723,8 @@ Form export_to_excel using it_data like gt_data.
   If sy-subrc <> 0.
     Clear lv_file_name. "Название будет задано ФМ ZWWW_OPENFORM
   Else.
-    Concatenate lv_file_path lc_file_name
+    Concatenate lv_file_path
+                lc_file_name
       into lv_file_name
       separated by '/'.
   Endif.
@@ -2485,7 +2736,8 @@ Form export_to_excel using it_data like gt_data.
     ls_t1_row-col00 = lv_row_num. "Первый столбец таблицы 1 = номер строки
     ls_t1_row-col01 = ls_data-equipment_name.
     ls_t1_row-col02 = ls_data-type.
-    Concatenate ls_data-manufact_name ls_data-manufact_place
+    Concatenate ls_data-manufact_name
+                ls_data-manufact_place
       into ls_t1_row-col03
       separated by space.
     ls_t1_row-col04 = ls_data-project.
@@ -2544,8 +2796,13 @@ Form export_to_excel using it_data like gt_data.
       others                  = 2
             .
   If sy-subrc <> 0.
-    Message id SY-MSGID type SY-MSGTY number SY-MSGNO
-            with SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+    Message id sy-msgid
+      type sy-msgty
+      number sy-msgno
+      with sy-msgv1
+           sy-msgv2
+           sy-msgv3
+           sy-msgv4.
   Endif.
 
 Endform. "export_to_excel
@@ -2560,11 +2817,12 @@ Endform. "export_to_excel
 *& <-> ot_sort = правила сортировки
 *& <-> os_layout = общие настройки внешнего вида
 *& <-> os_variant = вариант внешнего вида, заданный по умолчанию
+*& <-> ov_save_mode = как позволяется сохранять внешний вид грида
 *&-------------------------------------------------------------------*
 Form alv_2_prepare
   using
     iv_can_change_variant type boolean
-  changing:
+  changing
     ot_fieldcat type lvc_t_fcat
     ot_sort type lvc_t_sort
     ot_excl type ui_functions
@@ -2587,10 +2845,11 @@ Form alv_2_prepare
       others                       = 1
             .
   If sy-subrc <> 0.
-    Message e000(SU) with 'Ошибка при заполнении fieldcat для ALV на экране'
-                          sy-dynnr
-                          'из таблицы'
-                          gcs_log_table-table_name.
+    Message e000(SU)
+      with 'Ошибка при заполнении fieldcat для ALV на экране'
+           sy-dynnr
+           'из таблицы'
+           gcs_log_table-table_name.
     Exit.
   Endif.
 
@@ -2653,7 +2912,7 @@ Endform. "alv_2_prepare
 *& gcs_log_table-table_name.
 *&
 *&  -> iv_can_change_variant = разрешение изменять внешний вид грида
-*& <-> ot_log = внутренняя таблица с данными из таблицы ZPMP006_3
+*& <-> ot_data = внутренняя таблица с данными из таблицы ZPMP006_3
 *& <-> os_alv = набор объектов, необходимый для отображения ALV-грида
 *&
 *&-------------------------------------------------------------------*
@@ -2661,7 +2920,7 @@ Form alv_2_display
   using
     iv_can_change_variant type boolean
   changing
-    ot_log type ty_t_log
+    ot_data type ty_t_log
     os_alv type ty_s_alv-log.
 
   If os_alv-r_grid is initial.
@@ -2678,9 +2937,10 @@ Form alv_2_display
         others        = 1
         .
     If sy-subrc <> 0.
-      Message e000(SU) with 'Не удалось создать экземпляр'
-                            'dialogbox-контейнера на экране'
-                            sy-dynnr.
+      Message e000(SU)
+        with 'Не удалось создать экземпляр'
+             'dialogbox-контейнера на экране'
+             sy-dynnr.
       Exit.
     Endif.
 
@@ -2694,9 +2954,10 @@ Form alv_2_display
         others            = 1
         .
     If sy-subrc <> 0.
-      Message e000(SU) with 'Не удалось создать экземпляр ALV-Grid''а'
-                            'на экране'
-                            sy-dynnr.
+      Message e000(SU)
+        with 'Не удалось создать экземпляр ALV-Grid''а'
+             'на экране'
+             sy-dynnr.
       Exit.
     Endif.
 
@@ -2709,7 +2970,8 @@ Form alv_2_display
         os_alv-t_excl
         os_alv-s_layo
         os_alv-s_vari
-        os_alv-v_save.
+        os_alv-v_save
+            .
 
     Call method os_alv-r_grid->set_table_for_first_display
       exporting
@@ -2718,17 +2980,18 @@ Form alv_2_display
         i_save                        = os_alv-v_save
         it_toolbar_excluding          = os_alv-t_excl
       changing
-        it_outtab                     = ot_log
+        it_outtab                     = ot_data
         it_fieldcatalog               = os_alv-t_fcat
         it_sort                       = os_alv-t_sort
       exceptions
         others                        = 1
             .
     If sy-subrc <> 0.
-      Message e000(SU) with 'Исключ. ситуация при вызове метода'
-                            'os_alv-r_grid->set_table_for_first_display'
-                            'на экране'
-                            sy-dynnr.
+      Message e000(SU)
+        with 'Исключ. ситуация при вызове метода'
+             'os_alv-r_grid->set_table_for_first_display'
+             'на экране'
+             sy-dynnr.
       Exit.
     Endif.
 
@@ -2744,7 +3007,8 @@ Endform. "alv_2_display
 *&   Показать журнал изменений для выделенной строки
 *&
 *&  -> ir_alv = ссылка на грид, в котором выделена строка
-*&  -> it_data = таблица, привязанная к гриду
+*&  -> it_data = таблица, привязанная к гриду с данными о ПО
+*& <-> ot_log_data = таблица с данными журнала изменений
 *& <-> ov_row_count = количество строк в журнале, -1 если строки не выделены
 *& <-> os_alv = структура типа ty_s_alv, в ней изменяется ветка log
 *&-------------------------------------------------------------------*
@@ -2779,8 +3043,8 @@ Form show_log
   Perform get_log_data
     using ls_data
     changing ot_log_data
-             ov_row_count.
-
+             ov_row_count
+          .
   If ov_row_count is initial.
     Exit.
   Endif.
@@ -2789,8 +3053,8 @@ Form show_log
   Perform alv_2_display
     using gs_permissions-all
     changing ot_log_data
-             os_alv-log.
-
+             os_alv-log
+          .
 Endform. "show_log
 
 *&-------------------------------------------------------------------*
