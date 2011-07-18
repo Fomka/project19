@@ -36,7 +36,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '65',
+    minor type n length 2 value '66',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -116,24 +116,24 @@ Constants:
       end of status,
     "Экран для ввода новых записей, режим CREATE
       begin of data_create,
-        number type i value 10,
+        number type sy-dynnr value '0010',
         title type gui_title value '0010',
       end of data_create,
     "Экран для изменения записей, режим CHANGE
       begin of data_change,
-        number type i value 20,
+        number type sy-dynnr value '0020',
         title type gui_title value '0020',
         title_with_deleted type gui_title value '0021',
       end of data_change,
     "Экран для просмотра записей, режим VIEW
       begin of data_view,
-        number type i value 30,
+        number type sy-dynnr value '0030',
         title type gui_title value '0030',
         title_with_deleted type gui_title value '0031',
       end of data_view,
     "Начальный экран, экран выбора
       begin of sel_screen,
-        number type i value 1000,
+        number type sy-dynnr value '1000',
         group_create type screen-group1 value 'CRE',"Изменил? Ищи modif id CRE
         group_change type screen-group1 value 'CHA',"Изменил? Ищи modif id CHA
         group_all type screen-group1 value 'ALL',"Изменил? Ищи modif id ALL
@@ -142,7 +142,7 @@ Constants:
       end of sel_screen,
     "Экран для просмотра журнала изменений
       begin of log,
-        number type dynnr value 40,
+        number type sy-dynnr value '0040',
       end of log,
     end of screens,
   "Общее для гридов (ALV-Grid)
@@ -683,7 +683,8 @@ Module init_screen output. "Общий для всех экранов — уст
       Set pf-status gcs-screens-status-save. "Минимум + сохранение
       Set titlebar gcs-screens-data_create-title.
       Perform alv_1_display
-        using gs_permissions-all
+        using gcs-screens-data_create-number
+              gs_permissions-all
               p_show_d
         changing gt_data
                  gs_alv-data
@@ -703,7 +704,8 @@ Module init_screen output. "Общий для всех экранов — уст
         Set titlebar gcs-screens-data_change-title.
       Endif.
       Perform alv_1_display
-        using gs_permissions-all
+        using gcs-screens-data_change-number
+              gs_permissions-all
               p_show_d
         changing gt_data
                  gs_alv-data
@@ -721,7 +723,8 @@ Module init_screen output. "Общий для всех экранов — уст
         Set titlebar gcs-screens-data_view-title.
       Endif.
       Perform alv_1_display
-        using gs_permissions-all
+        using gcs-screens-data_view-number
+              gs_permissions-all
               p_show_d
         changing gt_data
                  gs_alv-data
@@ -889,7 +892,7 @@ Form dispatch_user_command
           If sy-subrc <> gcs-insert_failed.
           "Вернуться на экран выбора после успешного сохранения
             Perform exit_screen
-              using sy-dynnr
+              using gcs-screens-data_create-number
                     .
           Endif.
         When others. "Команда не найдена в списке обрабатываемых
@@ -989,7 +992,7 @@ Endform. "show_version
 *& предыдущий
 *&-------------------------------------------------------------------*
 Form exit_screen
-  using i_dynnr like sy-dynnr.
+  using iv_dynnr like sy-dynnr.
 
   Data:
     ls_data type ty_s_data,
@@ -998,7 +1001,7 @@ Form exit_screen
     lr_exception type ref to cx_root.
 
 "Снять блокировки
-  Case i_dynnr.
+  Case iv_dynnr.
     When gcs-screens-data_change-number.
     "Снять блокировку со всех записей
       Loop at gt_data into ls_data.
@@ -1030,7 +1033,7 @@ Form exit_screen
   Endcase.
 
 "Уничтожить использовавшиеся на экране объекты
-  Case i_dynnr.
+  Case iv_dynnr.
   "Экраны с гридом типа 1 — gs_alv-data
     When gcs-screens-data_create-number or
          gcs-screens-data_change-number or
@@ -1077,7 +1080,7 @@ Form exit_screen
     When others.
       Message i000(SU)
         with 'Модуль exit_screen не обрабатывает экран'
-             i_dynnr.
+             iv_dynnr.
       Exit.
 
   Endcase.
@@ -1448,7 +1451,7 @@ Form alv_1_prepare
   If sy-subrc <> 0.
     Message e000(SU)
       with 'Ошибка при заполнении fieldcat для ALV на экране'
-           sy-dynnr
+           iv_dynnr
            'из таблицы'
            gcs-data_table-table_name.
     Exit.
@@ -1571,6 +1574,7 @@ Endform. "alv_1_prepare
 *& из таблицы ZPMP006_1, которая задана через глобальную константу
 *& gcs-data_table-table_name.
 *&
+*&  -> iv_dynnr = номер экрана, на котором будет отображён ALV-грид
 *&  -> iv_can_change_variant = разрешение изменять внешний вид грида
 *&  -> iv_show_deleted = показывать удалённые данные
 *& <-> ot_data = внутренняя таблица с данными из таблицы БД
@@ -1579,6 +1583,7 @@ Endform. "alv_1_prepare
 *&-------------------------------------------------------------------*
 Form alv_1_display
   using
+    iv_dynnr type sy-dynnr
     iv_can_change_variant type boolean
     iv_show_deleted type boolean
   changing
@@ -1599,7 +1604,7 @@ Form alv_1_display
       Message e000(SU)
         with 'Не удалось создать экземпляр'
              'docking-контейнера на экране'
-             sy-dynnr.
+             iv_dynnr.
       Exit.
     Endif.
     Create object os_alv-r_grid
@@ -1611,7 +1616,7 @@ Form alv_1_display
     If sy-subrc <> 0.
       Message e000(SU)
         with 'Не удалось создать экземпляр ALV-Grid''а на экране'
-             sy-dynnr.
+             iv_dynnr.
       Exit.
     Endif.
 
@@ -1626,13 +1631,15 @@ Form alv_1_display
     If sy-subrc <> 0.
       Message e000(SU)
         with 'Исключ. ситуация при вызове'
-             'os_alv-r_grid->register_edit_event'.
+             'os_alv-r_grid->register_edit_event'
+             'на экране'
+             iv_dynnr.
       Exit.
     Endif.
 
     Perform alv_1_prepare
       using
-        sy-dynnr
+        iv_dynnr
         iv_can_change_variant
         iv_show_deleted
       changing
@@ -1675,7 +1682,7 @@ Form alv_1_display
         with 'Исключ. ситуация при вызове метода'
              'os_alv-r_grid->set_table_for_first_display'
              'на экране'
-             sy-dynnr.
+             iv_dynnr.
       Exit.
     Endif.
 
@@ -2812,6 +2819,7 @@ Endform. "export_to_excel
 *& Структура грида заполняется из таблицы ZPMP006_3, которая задана через
 *& глобальную константу gcs_log_table-table_name.
 *&
+*&  -> iv_dynnr = номер экрана, для которого подготавливается ALV-грид
 *&  -> iv_can_change_variant = разрешение изменять внешний вид грида
 *& <-> ot_fieldcat = структура грида (набор столбцов)
 *& <-> ot_sort = правила сортировки
@@ -2821,6 +2829,7 @@ Endform. "export_to_excel
 *&-------------------------------------------------------------------*
 Form alv_2_prepare
   using
+    iv_dynnr type sy-dynnr
     iv_can_change_variant type boolean
   changing
     ot_fieldcat type lvc_t_fcat
@@ -2847,7 +2856,7 @@ Form alv_2_prepare
   If sy-subrc <> 0.
     Message e000(SU)
       with 'Ошибка при заполнении fieldcat для ALV на экране'
-           sy-dynnr
+           iv_dynnr
            'из таблицы'
            gcs_log_table-table_name.
     Exit.
@@ -2911,6 +2920,7 @@ Endform. "alv_2_prepare
 *& из таблицы ZPMP006_3, которая задана через глобальную константу
 *& gcs_log_table-table_name.
 *&
+*&  -> iv_dynnr = номер экрана, на котором будет отображён ALV-грид
 *&  -> iv_can_change_variant = разрешение изменять внешний вид грида
 *& <-> ot_data = внутренняя таблица с данными из таблицы ZPMP006_3
 *& <-> os_alv = набор объектов, необходимый для отображения ALV-грида
@@ -2918,6 +2928,7 @@ Endform. "alv_2_prepare
 *&-------------------------------------------------------------------*
 Form alv_2_display
   using
+    iv_dynnr type sy-dynnr
     iv_can_change_variant type boolean
   changing
     ot_data type ty_t_log
@@ -2940,7 +2951,7 @@ Form alv_2_display
       Message e000(SU)
         with 'Не удалось создать экземпляр'
              'dialogbox-контейнера на экране'
-             sy-dynnr.
+             iv_dynnr.
       Exit.
     Endif.
 
@@ -2957,12 +2968,13 @@ Form alv_2_display
       Message e000(SU)
         with 'Не удалось создать экземпляр ALV-Grid''а'
              'на экране'
-             sy-dynnr.
+             iv_dynnr.
       Exit.
     Endif.
 
     Perform alv_2_prepare
       using
+        iv_dynnr
         iv_can_change_variant
       changing
         os_alv-t_fcat
@@ -2991,7 +3003,7 @@ Form alv_2_display
         with 'Исключ. ситуация при вызове метода'
              'os_alv-r_grid->set_table_for_first_display'
              'на экране'
-             sy-dynnr.
+             iv_dynnr.
       Exit.
     Endif.
 
@@ -3051,7 +3063,8 @@ Form show_log
 
 "Показать выбранные данные
   Perform alv_2_display
-    using gs_permissions-all
+    using gcs-screens-log-number
+          gs_permissions-all
     changing ot_log_data
              os_alv-log
           .
