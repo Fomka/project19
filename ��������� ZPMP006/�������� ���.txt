@@ -36,7 +36,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '66',
+    minor type n length 2 value '67',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -94,6 +94,7 @@ Constants:
       version type sy-ucomm value 'VERSION',
     "Начальный экран, экран выбора
       begin of sel_screen,
+        goto_users type sy-ucomm value 'GOTO_USERS', "Изменил? Ищи user-command goto_users
         goto_new type sy-ucomm value 'GOTO_NEW', "Изменил? Ищи user-command goto_new
         goto_search type sy-ucomm value 'GOTO_SEARCH', "Изменил? Ищи user-command goto_search
         online type sy-ucomm value 'ONLI',
@@ -144,6 +145,11 @@ Constants:
       begin of log,
         number type sy-dynnr value '0040',
       end of log,
+    "Экран для просмотра списка уполномоченных
+      begin of users,
+        number type sy-dynnr value '0130',
+        title type gui_title value '0130',
+      end of users,
     end of screens,
   "Общее для гридов (ALV-Grid)
     begin of alv,
@@ -240,7 +246,22 @@ Constants:
     value_new type NAME_FELD value 'VALUE_NEW',
     value_old type NAME_FELD value 'VALUE_OLD',
     alv_row_color type NAME_FELD value gcs-data_table-alv_row_color,
-  end of gcs_log_table.
+  end of gcs_log_table,
+"Название ракурса со списком уполномоченных и названия отображаемых столбцов
+  begin of gcs_user_table, "Вне gcs-* для того, чтобы обращаться к gcs-*
+    table_name type TABNAME value 'ZPMP006_4',
+    begin of col,
+      operation type LVC_FNAME value 'OPERATION',
+      username type LVC_FNAME value 'NAME_TEXT',
+      phone type LVC_FNAME value 'TEL_EXTENS',
+      building type LVC_FNAME value 'BUILDING',
+      room type LVC_FNAME value 'ROOMNUMBER',
+      department type LVC_FNAME value 'DEPARTMENT',
+      function type LVC_FNAME value 'FUNCTION',
+      change_date type LVC_FNAME value 'CHANGE_DATE',
+      change_name type LVC_FNAME value 'CHANGE_NAME',
+    end of col,
+  end of gcs_user_table.
 
 *&-------------------------------------------------------------------*
 *& Обработчик событий для всех типов ALV-гридов, объявление
@@ -281,6 +302,8 @@ Types:
   ty_s_data type line of ty_t_data,
   ty_s_log type ZPMP006_3,
   ty_t_log type standard table of ty_s_log,
+  ty_s_user type ZPMP006_4,
+  ty_t_users type standard table of ty_s_user,
 "Набор объектов для отображения ALV-гридов
   begin of ty_s_alv,
   "Данные по ПО = грид типа 1
@@ -308,6 +331,16 @@ Types:
       s_vari type disvariant,
       v_save type c,
     end of log,
+  "Список уполномоченных
+    begin of users,
+      r_grid type ref to cl_gui_alv_grid,
+      r_cont type ref to cl_gui_docking_container,
+      t_fcat type lvc_t_fcat,
+      t_sort type lvc_t_sort,
+      t_excl type ui_functions,
+      s_layo type lvc_s_layo,
+      s_vari type disvariant,
+    end of users,
   end of ty_s_alv.
 
 Data:
@@ -320,7 +353,8 @@ Data:
   gt_data type ty_t_data, "Главная внутренняя таблица с данными
   gt_data_before type ty_t_data, "Состояние gt_data при переходе на экран изменений
   gt_log_data type ty_t_log, "Внутренняя таблица с данными журнала изменений
-  gv_row_count type i, "Количество строк в gt_data после выборки из БД
+  gt_user_data type ty_t_users,
+  gv_row_count type i, "Количество строк в gt_*data после выборки из БД
   begin of gs_permissions,
     create type boolean value gc_false,
     change type boolean value gc_false,
@@ -459,19 +493,28 @@ Class lcl_grid_event_handler implementation.
 Endclass.
 
 *--- Экран выбора ------------------------------------------------------------*
-"Блок для CREATE (операция "Добавить")
-Selection-screen begin of block b01 with frame.
+"Блок элементов для пользователя с полномочиями на всё
+Selection-screen begin of block b01 with frame title text-011.
+  Selection-screen skip.
   Selection-screen pushbutton /1(40)
-    text-001
+    text-012
+    user-command goto_users
+    modif id ALL. "показывается, если есть полномочия на всё
+Selection-screen end of block b01.
+
+"Блок для CREATE (операция "Добавить")
+Selection-screen begin of block b10 with frame.
+  Selection-screen pushbutton /1(40)
+    text-101
     user-command goto_new
     modif id CRE. "Добавить
   Selection-screen comment 42(40) gv_r_cre
     modif id CRE.
-Selection-screen end of block b01.
+Selection-screen end of block b10.
 
 "Блок для CHANGE/VIEW (операции "Изменить", "Просмотреть")
-Selection-screen begin of block b02 with frame.
-  Selection-screen begin of block b10 with frame title text-010.
+Selection-screen begin of block b20 with frame.
+  Selection-screen begin of block b21 with frame title text-211.
     Selection-screen comment 1(40) gv_r_cha
       modif id ID2.
     Select-options:
@@ -484,8 +527,8 @@ Selection-screen begin of block b02 with frame.
       so1_man1 for ZPMP006_1-MANUFACT_PLACE,
       so1_proj for ZPMP006_1-PROJECT,
       so1_date for ZPMP006_1-DATE_START.
-  Selection-screen end of block b10.
-  Selection-screen begin of block b20 with frame title text-020.
+  Selection-screen end of block b21.
+  Selection-screen begin of block b22 with frame title text-221.
     Select-options:
       so2_name for ZPMP006_1-SOFTWARE_NAME,
       so2_vero for ZPMP006_1-VERSION_ORIGINAL,
@@ -495,7 +538,7 @@ Selection-screen begin of block b02 with frame.
       so2_mwor for ZPMP006_1-MOD_WORKER,
       so2_mdat for ZPMP006_1-MOD_DATE,
       so2_numc for ZPMP006_1-NUM_OF_COPIES.
-  Selection-screen end of block b20.
+  Selection-screen end of block b22.
   Select-options:
     so3_comm for ZPMP006_1-COMMENTARY,
     so3_chad for ZPMP006_1-CHANGE_DATE,
@@ -515,9 +558,9 @@ Selection-screen begin of block b02 with frame.
         "перебивалось аналогичным сообщением для операции CHANGE
     .
   Selection-screen pushbutton /1(40)
-    text-004
+    text-201
     user-command goto_search. "Искать
-Selection-screen end of block b02.
+Selection-screen end of block b20.
 
 *--- При запуске программы, выполняется однократно ---------------------------*
 Initialization.
@@ -734,6 +777,17 @@ Module init_screen output. "Общий для всех экранов — уст
           i_ready_for_input = 0
           .
 
+    When gcs-screens-users-number.
+      Set titlebar gcs-screens-users-title.
+      Perform alv_3_display
+        using gcs-screens-users-number
+        changing gt_user_data
+                 gs_alv-users
+              .
+      Call method gs_alv-users-r_grid->set_ready_for_input
+        exporting
+          i_ready_for_input = 0
+          .
     When others.
       Message i000(SU)
         with 'Отображение ALV-Grid''а на экране'
@@ -798,6 +852,20 @@ Form dispatch_user_command
     When gcs-screens-sel_screen-number.
 
       Case lv_ucomm.
+
+        When gcs-commands-sel_screen-goto_users.
+          Perform get_user_data
+            changing gt_user_data
+                     gv_row_count
+                  .
+          If gv_row_count = 0.
+            Message i000(su)
+              with 'Для программы'
+                   'нет пользователей с полномочиями на что-то,'
+                   'кроме просмотра.'.
+          Else.
+            Call screen gcs-screens-users-number.
+          Endif.
 
         When gcs-commands-sel_screen-goto_new.
           Call screen gcs-screens-data_create-number.
@@ -1077,6 +1145,24 @@ Form exit_screen
             gs_alv-log-v_save.
       Exit. "Не возвращаться на предыдущий экран, т.к. screens-log — фиктивный
 
+  "Экран для просмотра списка уполномоченных, грид типа 3 — gs_alv-users
+    When gcs-screens-users-number.
+      Try.
+        Call method gs_alv-users-r_grid->free.
+        Call method gs_alv-users-r_cont->free.
+      Catch cx_root into lr_exception. "#EC CATCH_ALL
+        Call method lr_exception->if_message~get_text
+          receiving
+            result = lv_exc_text.
+        Message i000(SU)
+         with 'Исключительная ситуация при вызове методов Free:'
+              lv_exc_text.
+      Endtry.
+      Free: gs_alv-users-r_grid, gs_alv-users-r_cont,
+            gt_user_data,
+            gs_alv-users-t_fcat, gs_alv-users-t_sort, gs_alv-users-t_excl,
+            gs_alv-users-s_layo, gs_alv-users-s_vari.
+
     When others.
       Message i000(SU)
         with 'Модуль exit_screen не обрабатывает экран'
@@ -1198,7 +1284,7 @@ Form show_change_stort_restricted
   Endloop.
 
 "Показать ограничения через Selection-screen comment gv_r_cha
-  Concatenate text-005
+  Concatenate text-212
               gv_r_cha
     into gv_r_cha.
   Perform show_screen_element_group
@@ -1245,7 +1331,7 @@ Form show_create_stort_restricted
 
   Data: ls_restriction type ty_s_string.
 "Задать текст для Selection-screen comment gv_r_cre
-  gv_r_cre = text-005.
+  gv_r_cre = text-212.
   Loop at it_restrictions into ls_restriction.
     Concatenate gv_r_cre
                 ls_restriction-string
@@ -1261,7 +1347,7 @@ Endform. "show_create_stort_restricted
 *&-------------------------------------------------------------------*
 Form show_create_stort_full.
 "Задать текст для Selection-screen comment gv_r_cre
-  Concatenate text-005
+  Concatenate text-212
               'нет'
     into gv_r_cre
     separated by space.
@@ -3092,3 +3178,235 @@ Form get_log_data
   ov_count = sy-dbcnt.
 
 Endform. "get_log_data
+
+*&-------------------------------------------------------------------*
+*&   Заполнить внутреннюю таблицу данными из ракурса о пользователях программы
+*&
+*& <-> ot_data = внутренняя таблица (источник задан константой — ZPMP006_4)
+*& <-> ov_count = количество строк, выбранных из БД во внутреннюю таблицу
+*&-------------------------------------------------------------------*
+Form get_user_data
+  changing
+    ot_data type ty_t_users
+    ov_count type i.
+
+"Select перезаписывает таблицу ot_data
+  Select *
+    from ZPMP006_4
+    into corresponding fields of table ot_data.
+  ov_count = sy-dbcnt.
+
+Endform. "get_user_data
+
+*&-------------------------------------------------------------------*
+*&   Подготовить набор объектов, необходимый для отображения ALV-грида типа 3,
+*& со списком уполномоченных. Структура грида заполняется из таблицы ZPMP006_4,
+*& которая задана через глобальную константу gcs_user_table-table_name.
+*&
+*&  -> iv_dynnr = номер экрана, для которого подготавливается ALV-грид
+*& <-> ot_fieldcat = структура грида (набор столбцов)
+*& <-> ot_sort = правила сортировки
+*& <-> os_layout = общие настройки внешнего вида
+*& <-> os_variant = вариант внешнего вида, заданный по умолчанию
+*& <-> ov_save_mode = как позволяется сохранять внешний вид грида
+*&-------------------------------------------------------------------*
+Form alv_3_prepare
+  using
+    iv_dynnr type sy-dynnr
+  changing
+    ot_fieldcat type lvc_t_fcat
+    ot_sort type lvc_t_sort
+    ot_excl type ui_functions
+    os_layout type lvc_s_layo
+    os_variant type disvariant.
+
+  Data:
+    ls_fcat type lvc_s_fcat,
+    ls_sort type lvc_s_sort,
+    ls_excl type ui_func,
+    lv_col_to_be_displayed type boolean. "Отображать текущий столбец
+
+  Field-symbols:
+    <lf_fieldname> type LVC_FNAME.
+
+"Field catalog
+  "Получить список столбцов для ALV из словаря данных
+  Call function 'LVC_FIELDCATALOG_MERGE'
+    exporting
+      i_structure_name             = gcs_user_table-table_name
+    changing
+      ct_fieldcat                  = ot_fieldcat
+    exceptions
+      others                       = 1
+            .
+  If sy-subrc <> 0.
+    Message e000(SU)
+      with 'Ошибка при заполнении fieldcat для ALV на экране'
+           iv_dynnr
+           'из таблицы'
+           gcs_user_table-table_name.
+    Exit.
+  Endif.
+
+"Оставить в гриде только те столбцы, что есть в списке для отображения
+  Loop at ot_fieldcat into ls_fcat.
+  "Искать очередной столбец в списке gcs_user_table-col
+    lv_col_to_be_displayed = gc_false.
+    Do.
+      Assign component sy-index
+        of structure gcs_user_table-col
+        to <lf_fieldname>.
+      If sy-subrc <> 0.
+        Exit. "Список столбцов закончился, выйти из цикла Do...Enddo.
+      Endif.
+      If ls_fcat-fieldname = <lf_fieldname>.
+      "Текущий столбец ls_fcat-fieldname найден в списке для отображения
+        lv_col_to_be_displayed = gc_true.
+        Exit. "Прекратить поиск — выйти из цикла Do...Enddo.
+      Endif.
+    Enddo.
+    If lv_col_to_be_displayed = gc_false.
+    "Текущий столбец не найден в списке для отображения
+      Delete ot_fieldcat index sy-tabix. "Удалить столбец
+      Continue. "Перейти к следующему столбцу в списке ALV
+    Endif.
+  "Показывать текущий столбец
+    ls_fcat-no_out = gc_false.
+  "Присвоить порядковый номер
+    ls_fcat-col_pos = sy-index.
+  "Сохранить сделанные в списке столбцов изменения
+    Modify ot_fieldcat from ls_fcat index sy-tabix.
+  Endloop.
+
+"Задать вручную заголовок, который не подтягивается из словаря данных
+  Read table ot_fieldcat
+    into ls_fcat
+    with key fieldname = gcs_user_table-col-change_date.
+  ls_fcat-coltext = 'Дата последнего изменения'.
+  Modify ot_fieldcat from ls_fcat index sy-tabix.
+
+"Sort
+  ls_sort-spos = 1.
+  ls_sort-fieldname = gcs_user_table-col-operation.
+  ls_sort-down = gc_true.
+  ls_sort-up = gc_false.
+  Append ls_sort to ot_sort.
+
+  ls_sort-spos = 2.
+  ls_sort-fieldname = gcs_user_table-col-username.
+  ls_sort-down = gc_true.
+  ls_sort-up = gc_false.
+  Append ls_sort to ot_sort.
+
+"Убрать кнопки
+  ls_excl = cl_gui_alv_grid=>mc_mb_sum. "Кнопки "Суммы", "Подсуммы"
+  Append ls_excl to ot_excl.
+
+  ls_excl = cl_gui_alv_grid=>mc_fc_graph. "Кнопка "Графика"
+  Append ls_excl to ot_excl.
+
+"Убрать все кнопки для работы с внешним видом грида
+  ls_excl = cl_gui_alv_grid=>mc_mb_variant. "Кнопки "Формат" — внешний вид
+  Append ls_excl to ot_excl.
+
+"Layout
+  os_layout-edit = gc_false.
+  os_layout-cwidth_opt = gc_true.
+  os_layout-sel_mode = gcs-alv-sel_mode-d.
+  os_layout-info_fname = gcs_log_table-alv_row_color.
+
+"Variant = вариант внешнего вида
+  os_variant-report = sy-repid. "использовать вариант по умолчанию, если есть
+
+Endform. "alv_3_prepare
+
+*&-------------------------------------------------------------------*
+*&   Показать/обновить грид типа 3 в контейнере класса cl_gui_docking_container
+*& Данные для грида — в ot_data.
+*& Структура и внешний вид грида задаются подпрограммой alv_3_prepare
+*& из ракурса ZPMP006_4, который задан через глобальную константу
+*& gcs_user_table-table_name.
+*&
+*&  -> iv_dynnr = номер экрана, на котором будет отображён ALV-грид
+*& <-> ot_data = внутренняя таблица с данными из ракурса ZPMP006_4
+*& <-> os_alv = набор объектов, необходимый для отображения ALV-грида
+*&
+*&-------------------------------------------------------------------*
+Form alv_3_display
+  using
+    iv_dynnr type sy-dynnr
+  changing
+    ot_data type ty_t_users
+    os_alv type ty_s_alv-users.
+
+  If os_alv-r_grid is initial.
+    Create object os_alv-r_cont
+      exporting
+        repid         = sy-repid
+        dynnr         = sy-dynnr
+        side          = cl_gui_docking_container=>dock_at_top
+        extension     = cl_gui_docking_container=>ws_maximizebox
+      exceptions
+        others        = 1
+        .
+    If sy-subrc <> 0.
+      Message e000(SU)
+        with 'Не удалось создать экземпляр'
+             'docking-контейнера на экране'
+             iv_dynnr.
+      Exit.
+    Endif.
+
+    Create object os_alv-r_grid
+      exporting
+        i_parent          = os_alv-r_cont
+      exceptions
+        others            = 1
+        .
+    If sy-subrc <> 0.
+      Message e000(SU)
+        with 'Не удалось создать экземпляр ALV-Grid''а'
+             'на экране'
+             iv_dynnr.
+      Exit.
+    Endif.
+
+    Perform alv_3_prepare
+      using
+        iv_dynnr
+      changing
+        os_alv-t_fcat
+        os_alv-t_sort
+        os_alv-t_excl
+        os_alv-s_layo
+        os_alv-s_vari
+            .
+
+    Call method os_alv-r_grid->set_table_for_first_display
+      exporting
+        is_layout                     = os_alv-s_layo
+        is_variant                    = os_alv-s_vari
+        it_toolbar_excluding          = os_alv-t_excl
+      changing
+        it_outtab                     = ot_data
+        it_fieldcatalog               = os_alv-t_fcat
+        it_sort                       = os_alv-t_sort
+      exceptions
+        others                        = 1
+            .
+    If sy-subrc <> 0.
+      Message e000(SU)
+        with 'Исключ. ситуация при вызове метода'
+             'os_alv-r_grid->set_table_for_first_display'
+             'на экране'
+             iv_dynnr.
+      Exit.
+    Endif.
+
+  Else.
+  "Обновить грид, сохраняя горизонтальную/вертикальную позиции прокрутки
+    Call method os_alv-r_grid->refresh_table_display
+      exporting
+        is_stable = gcs-alv-stable_refresh.
+  Endif.
+Endform. "alv_3_display
