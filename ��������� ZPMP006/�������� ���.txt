@@ -36,7 +36,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '68',
+    minor type n length 2 value '69',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -108,7 +108,7 @@ Constants:
         save type sy-ucomm value 'SAVE',
       end of change_screen,
     end of commands,
-  "Номера экранов, gui-заголовков и gui-статусов
+  "Номера экранов, gui-заголовков и gui-статусов, варианты внешнего вида ALV
     begin of screens,
     "gui-статусы
       begin of status,
@@ -149,6 +149,10 @@ Constants:
       begin of users,
         number type sy-dynnr value '0130',
         title type gui_title value '0130',
+        begin of variant,
+          minimal type slis_vari value '/MINIMAL',
+          maximal type slis_vari value '/MAXIMAL',
+        end of variant,
       end of users,
     end of screens,
   "Общее для гридов (ALV-Grid)
@@ -342,6 +346,7 @@ Types:
       t_excl type ui_functions,
       s_layo type lvc_s_layo,
       s_vari type disvariant,
+      v_save type c,
     end of users,
   end of ty_s_alv.
 
@@ -496,12 +501,10 @@ Endclass.
 
 *--- Экран выбора ------------------------------------------------------------*
 "Блок элементов для пользователя с полномочиями на всё
-Selection-screen begin of block b01 with frame title text-011.
-  Selection-screen skip.
+Selection-screen begin of block b01 with frame.
   Selection-screen pushbutton /1(40)
     text-012
-    user-command goto_users
-    modif id ALL. "показывается, если есть полномочия на всё
+    user-command goto_users.
 Selection-screen end of block b01.
 
 "Блок для CREATE (операция "Добавить")
@@ -783,6 +786,7 @@ Module init_screen output. "Общий для всех экранов — уст
       Set titlebar gcs-screens-users-title.
       Perform alv_3_display
         using gcs-screens-users-number
+              gs_permissions-all
         changing gt_user_data
                  gs_alv-users
               .
@@ -3206,6 +3210,7 @@ Endform. "get_user_data
 *& которая задана через глобальную константу gcs_user_table-table_name.
 *&
 *&  -> iv_dynnr = номер экрана, для которого подготавливается ALV-грид
+*&  -> iv_can_change_variant = разрешение изменять внешний вид грида
 *& <-> ot_fieldcat = структура грида (набор столбцов)
 *& <-> ot_sort = правила сортировки
 *& <-> os_layout = общие настройки внешнего вида
@@ -3215,12 +3220,14 @@ Endform. "get_user_data
 Form alv_3_prepare
   using
     iv_dynnr type sy-dynnr
+    iv_can_change_variant type boolean
   changing
     ot_fieldcat type lvc_t_fcat
     ot_sort type lvc_t_sort
     ot_excl type ui_functions
     os_layout type lvc_s_layo
-    os_variant type disvariant.
+    os_variant type disvariant
+    ov_save_mode type c.
 
   Data:
     ls_fcat type lvc_s_fcat,
@@ -3313,9 +3320,20 @@ Form alv_3_prepare
   ls_excl = cl_gui_alv_grid=>mc_fc_graph. "Кнопка "Графика"
   Append ls_excl to ot_excl.
 
-"Убрать все кнопки для работы с внешним видом грида
-  ls_excl = cl_gui_alv_grid=>mc_mb_variant. "Кнопки "Формат" — внешний вид
-  Append ls_excl to ot_excl.
+"Обработать полномочия на работу с внешним видом грида
+  If iv_can_change_variant <> gc_true.
+  "Убрать все кнопки для пользователей без полномочий
+    ls_excl = cl_gui_alv_grid=>mc_mb_variant. "Кнопки "Формат" — внешний вид
+    Append ls_excl to ot_excl.
+  "Использовать минимальный внешний вид
+    os_variant-variant = gcs-screens-users-variant-minimal.
+  Else.
+  "Оставить кнопки и задать, что можно сохранять внешний вид любыми способами
+    ov_save_mode = gcs-alv-variant_save_modes-all.
+  "Использовать максимальный внешний вид
+    os_variant-variant = gcs-screens-users-variant-maximal.
+  Endif.
+  os_variant-report = sy-repid.
 
 "Layout
   os_layout-edit = gc_false.
@@ -3324,7 +3342,6 @@ Form alv_3_prepare
   os_layout-info_fname = gcs_log_table-alv_row_color.
 
 "Variant = вариант внешнего вида
-  os_variant-report = sy-repid. "использовать вариант по умолчанию, если есть
 
 Endform. "alv_3_prepare
 
@@ -3336,6 +3353,7 @@ Endform. "alv_3_prepare
 *& gcs_user_table-table_name.
 *&
 *&  -> iv_dynnr = номер экрана, на котором будет отображён ALV-грид
+*&  -> iv_can_change_variant = разрешение изменять внешний вид грида
 *& <-> ot_data = внутренняя таблица с данными из ракурса ZPMP006_4
 *& <-> os_alv = набор объектов, необходимый для отображения ALV-грида
 *&
@@ -3343,6 +3361,7 @@ Endform. "alv_3_prepare
 Form alv_3_display
   using
     iv_dynnr type sy-dynnr
+    iv_can_change_variant type boolean
   changing
     ot_data type ty_t_users
     os_alv type ty_s_alv-users.
@@ -3382,18 +3401,21 @@ Form alv_3_display
     Perform alv_3_prepare
       using
         iv_dynnr
+        iv_can_change_variant
       changing
         os_alv-t_fcat
         os_alv-t_sort
         os_alv-t_excl
         os_alv-s_layo
         os_alv-s_vari
+        os_alv-v_save
             .
 
     Call method os_alv-r_grid->set_table_for_first_display
       exporting
         is_layout                     = os_alv-s_layo
         is_variant                    = os_alv-s_vari
+        i_save                        = gcs-alv-variant_save_modes-all
         it_toolbar_excluding          = os_alv-t_excl
       changing
         it_outtab                     = ot_data
