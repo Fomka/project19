@@ -36,7 +36,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '70',
+    minor type n length 2 value '71',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -256,7 +256,7 @@ Constants:
     table_name type TABNAME value 'ZPMP006_4',
     begin of col,
       department type LVC_FNAME value 'DEPARTMENT',
-      user_name type LVC_FNAME value 'NAME_FIRST',
+      user_name type LVC_FNAME value 'NAME_TEXT',
       user_surname type LVC_FNAME value 'NAME_LAST',
       function type LVC_FNAME value 'FUNCTION',
       phone type LVC_FNAME value 'TEL_EXTENS',
@@ -3292,6 +3292,13 @@ Form alv_3_prepare
     into ls_fcat
     with key fieldname = gcs_user_table-col-change_date.
   ls_fcat-coltext = 'Дата последнего изменения'.
+  Modify ot_fieldcat from ls_fcat index sy-tabix.
+
+"Скрыть столбец "Фамилия" (нужен для сортировки, фамилия есть в столбце u_name)
+  Read table ot_fieldcat
+    into ls_fcat
+    with key fieldname = gcs_user_table-col-user_surname.
+  ls_fcat-no_out = gc_true.
   Modify ot_fieldcat from ls_fcat index sy-tabix.
 
 "Sort
