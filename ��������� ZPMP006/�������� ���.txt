@@ -36,7 +36,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '71',
+    minor type n length 2 value '72',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -317,6 +317,7 @@ Types:
       r_grid type ref to cl_gui_alv_grid,
       r_handler type ref to lcl_grid_event_handler,
       r_cont type ref to cl_gui_docking_container,
+      r_protocol_cont type ref to cl_gui_dialogbox_container, "всплывающее окно
       t_fcat type lvc_t_fcat,
       t_sort type lvc_t_sort,
       t_excl type ui_functions,
@@ -493,9 +494,19 @@ Class lcl_grid_event_handler implementation.
     Endcase.
   Endmethod.
   Method  on_dialogbox_close.
-    Perform exit_screen
-      using gcs-screens-log-number
-            .
+    Case me.
+      When gs_alv-data-r_handler.
+      "Скрыть список ошибок в списке ПО = грид типа 1
+        Call method gs_alv-data-r_protocol_cont->set_visible
+          exporting
+            visible = gc_false.
+
+      When gs_alv-log-r_handler.
+      "Уничтожить объекты журнала изменений = грид типа 2
+        Perform exit_screen
+          using gcs-screens-log-number
+                .
+    Endcase.
   Endmethod.
 Endclass.
 
@@ -1115,6 +1126,7 @@ Form exit_screen
       Try.
         Call method gs_alv-data-r_grid->free.
         Call method gs_alv-data-r_cont->free.
+        Call method gs_alv-data-r_protocol_cont->free.
       Catch cx_root into lr_exception. "#EC CATCH_ALL
         Call method lr_exception->if_message~get_text
           receiving
@@ -1124,13 +1136,14 @@ Form exit_screen
               lv_exc_text.
       Endtry.
       Free: gs_alv-data-r_grid, gs_alv-data-r_cont, gs_alv-data-r_handler,
+            gs_alv-data-r_protocol_cont,
             gt_data, gt_data_before,
             gs_alv-data-t_fcat, gs_alv-data-t_sort, gs_alv-data-t_excl,
             gs_alv-data-t_f4,
             gs_alv-data-s_layo, gs_alv-data-s_vari,
             gs_alv-data-v_save.
 
-  "Экран для просмотра журнала изменений, грид типа 2 — gs_alv-log
+  "Окно (не экран) для просмотра журнала изменений, грид типа 2 — gs_alv-log
     When gcs-screens-log-number.
       Try.
         Call method gs_alv-log-r_grid->free.
@@ -1149,7 +1162,7 @@ Form exit_screen
             gs_alv-log-t_fcat, gs_alv-log-t_sort, gs_alv-log-t_excl,
             gs_alv-log-s_layo, gs_alv-log-s_vari,
             gs_alv-log-v_save.
-      Exit. "Не возвращаться на предыдущий экран, т.к. screens-log — фиктивный
+      Exit. "Не возвращаться на пред. экран — обраб-ся закрытие окна, не экрана
 
   "Экран для просмотра списка уполномоченных, грид типа 3 — gs_alv-users
     When gcs-screens-users-number.
@@ -1683,6 +1696,7 @@ Form alv_1_display
     os_alv type ty_s_alv-data.
 
   If os_alv-r_grid is initial.
+  "Контейнер для списка ПО: на весь экран, без полос прокрутки
     Create object os_alv-r_cont
       exporting
         repid         = sy-repid
@@ -1699,9 +1713,33 @@ Form alv_1_display
              iv_dynnr.
       Exit.
     Endif.
+
+  "Контейнер для списка ошибок в списке ПО
+    Create object os_alv-r_protocol_cont
+      exporting
+        width         = 792
+        height        = 216
+        repid         = sy-repid
+        dynnr         = sy-dynnr
+        top           = 100
+        left          = 200
+        caption       = 'Список ошибок'
+      exceptions
+        others        = 1
+        .
+    If sy-subrc <> 0.
+      Message e000(SU)
+        with 'Не удалось создать экземпляр'
+             'dialogbox-контейнера на экране'
+             iv_dynnr.
+      Exit.
+    Endif.
+
+  "Список ПО
     Create object os_alv-r_grid
       exporting
         i_parent          = os_alv-r_cont
+        i_applogparent    = os_alv-r_protocol_cont "привязать список ошибок
       exceptions
         others            = 1
         .
@@ -1712,11 +1750,20 @@ Form alv_1_display
       Exit.
     Endif.
 
+  "Скрыть список ошибок в списке ПО
+    Call method gs_alv-data-r_protocol_cont->set_visible
+      exporting
+        visible = gc_false.
+  "Не заносить ошибки в протокол, просто помечать ячейки в гриде красным
+    Call method os_alv-r_grid->activate_display_protocol
+      exporting
+        i_dialog          = gc_false.
+
     "Задать способ подтягивания изменений в таблице ALV-Grid'а
     Call method os_alv-r_grid->register_edit_event
       exporting
-        i_event_id = cl_gui_alv_grid=>mc_evt_enter "Enter либо двойной щелчок
-*        i_event_id = cl_gui_alv_grid=>mc_evt_modified "когда курсор покидает ячейку
+*        i_event_id = cl_gui_alv_grid=>mc_evt_enter "Enter либо двойной щелчок
+        i_event_id = cl_gui_alv_grid=>mc_evt_modified "Выход из ячейки (по Tab)
       exceptions
         others     = 1
             .
@@ -1751,6 +1798,7 @@ Form alv_1_display
     Set handler os_alv-r_handler->handle_double_click for os_alv-r_grid.
     Set handler os_alv-r_handler->handle_onf4 for os_alv-r_grid.
     Set handler os_alv-r_handler->handle_data_changed for os_alv-r_grid.
+    Set handler os_alv-r_handler->on_dialogbox_close for os_alv-r_protocol_cont.
 
     Call method os_alv-r_grid->register_f4_for_fields
       exporting
@@ -1831,7 +1879,8 @@ Form save_data
     lv_string type string.
 
 
-"Подтянуть текущее состояние ячеек ALV-грида в связанную с ним таблицу ot_data
+"Проверить ячейки ALV-грида, которые уже подтянуты в связанную таблицу ot_data
+" (подтянуты автоматически, т.к. mc_evt_modified)
   Call method is_alv-r_grid->check_changed_data
     importing
       e_valid   = lv_data_is_valid
@@ -2111,6 +2160,8 @@ Endform. "get_rows_with_mod_content
 *& Введённое местоположение — существует.
 *& Введённая единица оборудования — имеет актуальное местоположение, которое
 *& совпадает с местоположением в соседней ячейке той же строки списка.
+*&
+*&  -> ir_data_changed = атрибут mr_data_changed объекта класса cl_gui_alv_grid
 *&-------------------------------------------------------------------*
 Form alv_1_handle_data_changed
   using
