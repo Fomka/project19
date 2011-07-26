@@ -36,7 +36,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '72',
+    minor type n length 2 value '73',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -3010,7 +3010,13 @@ Form alv_2_prepare
     If ls_fcat-fieldname = gcs_log_table-key_mandt or
        ls_fcat-fieldname = gcs_log_table-key_unique_index or
        ls_fcat-fieldname = gcs_log_table-key_field_name.
+    "Скрыть столбцы
       ls_fcat-no_out = gc_true.
+    Endif.
+    If ls_fcat-fieldname = gcs_log_table-key_change_name or
+       ls_fcat-fieldname = gcs_log_table-field_label.
+    "Отменить в столбцах объединение ячеек с одинак. значениями по вертикали
+      ls_fcat-no_merging = gc_true.
     Endif.
     Modify ot_fieldcat from ls_fcat index sy-tabix.
   Endloop.
@@ -3026,6 +3032,12 @@ Form alv_2_prepare
   ls_sort-fieldname = gcs_log_table-key_change_time.
   ls_sort-down = gc_true.
   ls_sort-up = gc_false.
+  Append ls_sort to ot_sort.
+
+  ls_sort-spos = 3.
+  ls_sort-fieldname = gcs_log_table-field_label.
+  ls_sort-down = gc_false.
+  ls_sort-up = gc_true.
   Append ls_sort to ot_sort.
 
 "Убрать кнопки
