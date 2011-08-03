@@ -36,7 +36,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '75',
+    minor type n length 2 value '77',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -150,8 +150,8 @@ Constants:
         number type sy-dynnr value '0130',
         title type gui_title value '0130',
         begin of variant,
-          minimal type slis_vari value '/MINIMAL',
-          maximal type slis_vari value '/MAXIMAL',
+        "Упрощённый внешний вид грида
+          minimal type slis_vari value '/130_MINIMAL',
         end of variant,
       end of users,
     end of screens,
@@ -3282,7 +3282,7 @@ Endform. "get_user_data
 *& которая задана через глобальную константу gcs_user_table-table_name.
 *&
 *&  -> iv_dynnr = номер экрана, для которого подготавливается ALV-грид
-*&  -> iv_can_change_variant = разрешение изменять внешний вид грида
+*&  -> iv_view_full = просмотр без упрощения внешнего вида
 *& <-> ot_fieldcat = структура грида (набор столбцов)
 *& <-> ot_sort = правила сортировки
 *& <-> os_layout = общие настройки внешнего вида
@@ -3292,7 +3292,7 @@ Endform. "get_user_data
 Form alv_3_prepare
   using
     iv_dynnr type sy-dynnr
-    iv_can_change_variant type boolean
+    iv_view_full type boolean
   changing
     ot_fieldcat type lvc_t_fcat
     ot_sort type lvc_t_sort
@@ -3393,20 +3393,10 @@ Form alv_3_prepare
   ls_excl = cl_gui_alv_grid=>mc_fc_graph. "Кнопка "Графика"
   Append ls_excl to ot_excl.
 
+  ls_excl = cl_gui_alv_grid=>mc_mb_variant. "Кнопки "Формат" — внешний вид
+  Append ls_excl to ot_excl.
+
 "Обработать полномочия на работу с внешним видом грида
-  If iv_can_change_variant <> gc_true.
-  "Убрать все кнопки для пользователей без полномочий
-    ls_excl = cl_gui_alv_grid=>mc_mb_variant. "Кнопки "Формат" — внешний вид
-    Append ls_excl to ot_excl.
-  "Использовать минимальный внешний вид
-    os_variant-variant = gcs-screens-users-variant-minimal.
-  Else.
-  "Оставить кнопки и задать, что можно сохранять внешний вид любыми способами
-    ov_save_mode = gcs-alv-variant_save_modes-all.
-  "Использовать максимальный внешний вид
-    "os_variant-variant = gcs-screens-users-variant-maximal.
-  Endif.
-  os_variant-report = sy-repid.
 
 "Layout
   os_layout-edit = gc_false.
@@ -3415,6 +3405,14 @@ Form alv_3_prepare
   os_layout-info_fname = gcs_log_table-alv_row_color.
 
 "Variant = вариант внешнего вида
+  If iv_view_full <> gc_true.
+  "Использовать упрощённый внешний вид грида
+    os_variant-variant = gcs-screens-users-variant-minimal.
+  Else.
+  "Использовать внешний вид без упрощения
+  "Он уже задан через заполнение ot_fcat и ot_sort, фильтры не накладываются.
+  Endif.
+  os_variant-report = sy-repid.
 
 Endform. "alv_3_prepare
 
