@@ -36,7 +36,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '80',
+    minor type n length 2 value '81',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -356,6 +356,7 @@ Types:
   end of ty_s_alv.
 
 Data:
+  gv_variant_is_correct type boolean, "Введённый на экране выбора формат верен
 "Ограничения на поле ZPMP006_1-STORT "Местоположение"
   gt_create_stort_restrictions type ty_t_strings, "для операции CREATE
   gt_change_stort_restrictions type ty_t_strings, "для операции CHANGE
@@ -724,6 +725,18 @@ At selection-screen.
 
 *--- Нажатие "Выполнить" (F8) на экране выбора (sy-ucomm = 'ONLI') -----------*
 Start-of-selection.
+  Perform check_variant
+    using p_vari
+          sy-repid
+    changing gv_variant_is_correct.
+  If gv_variant_is_correct <> gc_true.
+    Message i000(su)
+      with 'Формат'
+           p_vari
+           'не найден!'
+      display like 'E'.
+    Exit.
+  Endif.
   Perform get_data
     using p_show_d
     changing gt_data
@@ -905,6 +918,18 @@ Form dispatch_user_command
           Call screen gcs-screens-data_create-number.
 
         When gcs-commands-sel_screen-goto_search.
+          Perform check_variant
+            using p_vari
+                  sy-repid
+            changing gv_variant_is_correct.
+          If gv_variant_is_correct <> gc_true.
+            Message i000(su)
+              with 'Формат'
+                   p_vari
+                   'не найден!'
+              display like 'E'.
+            Exit.
+          Endif.
           Perform get_data
             using p_show_d
             changing gt_data
@@ -3577,3 +3602,57 @@ Form get_variant_list
   Endif.
   ov_variant = ls_variant-variant.
 Endform. "get_variant_list
+
+*&-------------------------------------------------------------------*
+*&   Проверить, есть ли заданный формат iv_variant в списке форматов ALV,
+*& доступных для текущего пользователя в заданной программе. Если задано
+*& пустое название формата, выдать, что проверка пройдена.
+*&
+*&  -> iv_variant = название формата
+*&  -> iv_repid = название программы
+*& <-> ov_correct = результат проверки (истина, если формат есть в списке или
+*&                  не задан)
+*&-------------------------------------------------------------------*
+Form check_variant
+  using iv_variant type slis_vari
+        iv_repid type sy-repid
+  changing ov_correct type boolean.
+
+  Constants:
+    lc_tool type c length 2 value 'LT'.
+
+  Data:
+  "Internal variant = тип "Вариант просмотра (внутреннее использование)"
+    ls_int_variant type ltvariant, "#EC NEEDED смотри Read table ... ниже
+    lt_int_variants type standard table of ltvariant,
+  "variant name
+    ls_variant type disvariant,
+    lv_subrc type sy-subrc.
+
+  If iv_variant is initial.
+    ov_correct = gc_true.
+    Exit.
+  Endif.
+
+  ov_correct = gc_false.
+
+  ls_variant-report = iv_repid.
+
+  Perform variants_read
+   in program SAPLSKBS
+              tables
+                 lt_int_variants
+              using
+                 lc_tool
+                 ls_variant
+                 gc_true
+                 gc_true
+                 lv_subrc.
+
+  Read table lt_int_variants
+    into ls_int_variant
+    with key variant = iv_variant.
+  If sy-subrc = 0.
+    ov_correct = gc_true.
+  Endif.
+Endform. "check_variant
