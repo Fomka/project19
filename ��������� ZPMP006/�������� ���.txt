@@ -36,7 +36,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '79',
+    minor type n length 2 value '80',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -149,10 +149,6 @@ Constants:
       begin of users,
         number type sy-dynnr value '0130',
         title type gui_title value '0130',
-        begin of variant,
-        "Упрощённый внешний вид грида
-          minimal type slis_vari value '/130_MINIMAL',
-        end of variant,
       end of users,
     end of screens,
   "Общее для гридов (ALV-Grid)
@@ -254,19 +250,28 @@ Constants:
 "Название ракурса со списком уполномоченных и названия отображаемых столбцов
   begin of gcs_user_table, "Вне gcs-* для того, чтобы обращаться к gcs-*
     table_name type TABNAME value 'ZPMP006_4',
-    begin of col,
-      department type LVC_FNAME value 'DEPARTMENT',
-      user_name type LVC_FNAME value 'NAME_TEXT',
-      user_surname type LVC_FNAME value 'NAME_LAST',
-      function type LVC_FNAME value 'FUNCTION',
-      phone type LVC_FNAME value 'TEL_EXTENS',
-      building type LVC_FNAME value 'BUILDING',
-      room type LVC_FNAME value 'ROOMNUMBER',
-      operation type LVC_FNAME value 'OPERATION',
-      restrictions type LVC_FNAME value 'RESTRICTIONS',
-      change_date type LVC_FNAME value 'CHANGE_DATE',
-      change_name type LVC_FNAME value 'CHANGE_NAME',
-    end of col,
+    begin of col_set,
+      begin of full,
+        department type LVC_FNAME value 'DEPARTMENT',
+        user_name type LVC_FNAME value 'NAME_TEXT',
+        user_surname type LVC_FNAME value 'NAME_LAST',
+        function type LVC_FNAME value 'FUNCTION',
+        phone type LVC_FNAME value 'TEL_EXTENS',
+        building type LVC_FNAME value 'BUILDING',
+        room type LVC_FNAME value 'ROOMNUMBER',
+        operation type LVC_FNAME value 'OPERATION',
+        restrictions type LVC_FNAME value 'RESTRICTIONS',
+        change_date type LVC_FNAME value 'CHANGE_DATE',
+        change_name type LVC_FNAME value 'CHANGE_NAME',
+      end of full,
+      begin of reduced,
+        department type LVC_FNAME value 'DEPARTMENT',
+        user_name type LVC_FNAME value 'NAME_TEXT',
+        user_surname type LVC_FNAME value 'NAME_LAST',
+        function type LVC_FNAME value 'FUNCTION',
+        phone type LVC_FNAME value 'TEL_EXTENS',
+      end of reduced,
+    end of col_set,
   end of gcs_user_table.
 
 *&-------------------------------------------------------------------*
@@ -346,7 +351,6 @@ Types:
       t_sort type lvc_t_sort,
       t_excl type ui_functions,
       s_layo type lvc_s_layo,
-      s_vari type disvariant,
       v_save type c,
     end of users,
   end of ty_s_alv.
@@ -1193,7 +1197,7 @@ Form exit_screen
       Free: gs_alv-users-r_grid, gs_alv-users-r_cont,
             gt_user_data,
             gs_alv-users-t_fcat, gs_alv-users-t_sort, gs_alv-users-t_excl,
-            gs_alv-users-s_layo, gs_alv-users-s_vari.
+            gs_alv-users-s_layo.
 
     When others.
       Message i000(SU)
@@ -1532,7 +1536,7 @@ Endform. "get_data
 *&  -> iv_can_save_v_globally = можно сохранять вариант и для себя, и для всех
 *&  -> iv_show_deleted = показывать удалённые данные
 *&  -> iv_variant = название варианта внешнего вида, который нужно установить
-*& <-> ot_fieldcat = структура грида (набор столбцов)
+*& <-> ot_fieldcat = структура грида (список столбцов ALV)
 *& <-> ot_sort = правила сортировки
 *& <-> os_layout = общие настройки внешнего вида
 *& <-> os_variant = вариант внешнего вида (имя программы, варианта, ...)
@@ -2988,7 +2992,7 @@ Endform. "export_to_excel
 *&
 *&  -> iv_dynnr = номер экрана, для которого подготавливается ALV-грид
 *&  -> iv_can_change_variant = разрешение изменять внешний вид грида
-*& <-> ot_fieldcat = структура грида (набор столбцов)
+*& <-> ot_fieldcat = структура грида (список столбцов ALV)
 *& <-> ot_sort = правила сортировки
 *& <-> os_layout = общие настройки внешнего вида
 *& <-> os_variant = вариант внешнего вида, заданный по умолчанию
@@ -3306,10 +3310,9 @@ Endform. "get_user_data
 *&
 *&  -> iv_dynnr = номер экрана, для которого подготавливается ALV-грид
 *&  -> iv_view_full = просмотр без упрощения внешнего вида
-*& <-> ot_fieldcat = структура грида (набор столбцов)
+*& <-> ot_fieldcat = структура грида (список столбцов ALV)
 *& <-> ot_sort = правила сортировки
 *& <-> os_layout = общие настройки внешнего вида
-*& <-> os_variant = вариант внешнего вида (имя программы, варианта, ...)
 *& <-> ov_save_mode = как позволяется сохранять внешний вид грида
 *&-------------------------------------------------------------------*
 Form alv_3_prepare
@@ -3321,14 +3324,13 @@ Form alv_3_prepare
     ot_sort type lvc_t_sort
     ot_excl type ui_functions
     os_layout type lvc_s_layo
-    os_variant type disvariant
     ov_save_mode type c.
 
   Data:
     ls_fcat type lvc_s_fcat,
     ls_sort type lvc_s_sort,
     ls_excl type ui_func,
-    lv_col_number type i. "Номер столбца в списке gcs_user_table-col
+    lv_col_number type i. "Номер столбца в списке gcs_user_table-col_set-full
 
   Field-symbols:
     <lf_fieldname> type LVC_FNAME.
@@ -3352,14 +3354,21 @@ Form alv_3_prepare
     Exit.
   Endif.
 
-"Оставить в гриде только те столбцы, что есть в списке для отображения
+"Оставить в гриде только те столбцы, что есть в списке для отображения.
+"Различать полный/сокращённый список столбцов: col_set-full/col_set-reduced.
   Loop at ot_fieldcat into ls_fcat.
-  "Искать очередной столбец в списке gcs_user_table-col
+  "Искать очередной столбец из списка ст. ALV в списке столбцов для отображения
     lv_col_number = 0.
     Do.
-      Assign component sy-index
-        of structure gcs_user_table-col
-        to <lf_fieldname>.
+      If iv_view_full = gc_true.
+        Assign component sy-index
+          of structure gcs_user_table-col_set-full
+          to <lf_fieldname>.
+      Else.
+        Assign component sy-index
+          of structure gcs_user_table-col_set-reduced
+          to <lf_fieldname>.
+      Endif.
       If sy-subrc <> 0.
         Exit. "Список столбцов закончился, выйти из цикла Do...Enddo.
       Endif.
@@ -3370,41 +3379,43 @@ Form alv_3_prepare
       Endif.
     Enddo.
     If lv_col_number = 0.
-    "Текущий столбец не найден в списке для отображения
+    "Текущий столбец ls_fcat-fieldname не найден в списке для отображения
       Delete ot_fieldcat index sy-tabix. "Удалить столбец
-      Continue. "Перейти к следующему столбцу в списке ALV
+      Continue. "Перейти к следующему столбцу в списке столбцов ALV
     Endif.
-  "Показывать текущий столбец
+  "Показывать текущий столбец ls_fcat-fieldname из списка столбцов ALV
     ls_fcat-no_out = gc_false.
   "Присвоить порядковый номер
     ls_fcat-col_pos = lv_col_number.
-  "Сохранить сделанные в списке столбцов изменения
+  "Сохранить изменения, сделанные в списке столбцов ALV
     Modify ot_fieldcat from ls_fcat index sy-tabix.
   Endloop.
 
 "Задать вручную заголовок, который не подтягивается из словаря данных
   Read table ot_fieldcat
     into ls_fcat
-    with key fieldname = gcs_user_table-col-change_date.
-  ls_fcat-coltext = 'Дата последнего изменения'.
-  Modify ot_fieldcat from ls_fcat index sy-tabix.
+    with key fieldname = gcs_user_table-col_set-full-change_date.
+  If sy-subrc = 0.
+    ls_fcat-coltext = 'Дата последнего изменения'.
+    Modify ot_fieldcat from ls_fcat index sy-tabix.
+  Endif.
 
 "Скрыть столбец "Фамилия" (нужен для сортировки, фамилия есть в столбце u_name)
   Read table ot_fieldcat
     into ls_fcat
-    with key fieldname = gcs_user_table-col-user_surname.
+    with key fieldname = gcs_user_table-col_set-full-user_surname.
   ls_fcat-no_out = gc_true.
   Modify ot_fieldcat from ls_fcat index sy-tabix.
 
 "Sort
   ls_sort-spos = 1.
-  ls_sort-fieldname = gcs_user_table-col-department.
+  ls_sort-fieldname = gcs_user_table-col_set-full-department.
   ls_sort-down = gc_false.
   ls_sort-up = gc_true.
   Append ls_sort to ot_sort.
 
   ls_sort-spos = 2.
-  ls_sort-fieldname = gcs_user_table-col-user_surname.
+  ls_sort-fieldname = gcs_user_table-col_set-full-user_surname.
   ls_sort-down = gc_false.
   ls_sort-up = gc_true.
   Append ls_sort to ot_sort.
@@ -3419,23 +3430,11 @@ Form alv_3_prepare
   ls_excl = cl_gui_alv_grid=>mc_mb_variant. "Кнопки "Формат" — внешний вид
   Append ls_excl to ot_excl.
 
-"Обработать полномочия на работу с внешним видом грида
-
 "Layout
   os_layout-edit = gc_false.
   os_layout-cwidth_opt = gc_true.
   os_layout-sel_mode = gcs-alv-sel_mode-d.
   os_layout-info_fname = gcs_log_table-alv_row_color.
-
-"Variant = вариант внешнего вида
-  If iv_view_full <> gc_true.
-  "Использовать упрощённый внешний вид грида
-    os_variant-variant = gcs-screens-users-variant-minimal.
-  Else.
-  "Использовать внешний вид без упрощения
-  "Он уже задан через заполнение ot_fcat и ot_sort, фильтры не накладываются.
-  Endif.
-  os_variant-report = sy-repid.
 
 Endform. "alv_3_prepare
 
@@ -3501,14 +3500,12 @@ Form alv_3_display
         os_alv-t_sort
         os_alv-t_excl
         os_alv-s_layo
-        os_alv-s_vari
         os_alv-v_save
             .
 
     Call method os_alv-r_grid->set_table_for_first_display
       exporting
         is_layout                     = os_alv-s_layo
-        is_variant                    = os_alv-s_vari
         i_save                        = gcs-alv-variant_save_modes-all
         it_toolbar_excluding          = os_alv-t_excl
       changing
