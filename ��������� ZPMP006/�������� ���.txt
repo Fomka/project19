@@ -36,7 +36,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '84',
+    minor type n length 2 value '85',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -3315,7 +3315,6 @@ Endform. "get_user_data
 *& <-> ot_sort = правила сортировки
 *& <-> ot_excl = список кнопок, убираемых с панели инструментов ALV-грида
 *& <-> os_layout = общие настройки внешнего вида
-*& <-> ov_save_mode = как позволяется сохранять внешний вид грида
 *&-------------------------------------------------------------------*
 Form alv_3_prepare
   using
@@ -3325,8 +3324,7 @@ Form alv_3_prepare
     ot_fieldcat type lvc_t_fcat
     ot_sort type lvc_t_sort
     ot_excl type ui_functions
-    os_layout type lvc_s_layo
-    ov_save_mode type char01.
+    os_layout type lvc_s_layo.
 
   Data:
     ls_fcat type lvc_s_fcat,
@@ -3502,7 +3500,6 @@ Form alv_3_display
         os_alv-t_sort
         os_alv-t_excl
         os_alv-s_layo
-        os_alv-v_save
             .
 
     Call method os_alv-r_grid->set_table_for_first_display
