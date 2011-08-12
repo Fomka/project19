@@ -36,7 +36,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '85',
+    minor type n length 2 value '86',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -282,22 +282,34 @@ Class lcl_grid_event_handler definition final.
     Methods:
       handle_toolbar "Для добавления своих кнопок в панель инструментов
         for event toolbar of cl_gui_alv_grid
-          importing sender e_object e_interactive,
+          importing sender
+                    e_object
+                    e_interactive, "#EC NEEDED
       handle_user_command
         for event user_command of cl_gui_alv_grid
-          importing sender e_ucomm,
+          importing sender
+                    e_ucomm,
       handle_hotspot_click
         for event hotspot_click of cl_gui_alv_grid
-          importing sender e_column_id es_row_no,
+          importing sender
+                    e_column_id
+                    es_row_no,
       handle_double_click
         for event double_click of cl_gui_alv_grid
-          importing sender e_column es_row_no,
+          importing sender
+                    e_column
+                    es_row_no,
       handle_onf4
         for event onf4 of cl_gui_alv_grid
-          importing sender e_fieldname e_fieldvalue es_row_no er_event_data,
+          importing sender
+                    e_fieldname
+                    e_fieldvalue "#EC NEEDED
+                    es_row_no
+                    er_event_data,
       handle_data_changed
         for event data_changed of cl_gui_alv_grid
-          importing sender er_data_changed,
+          importing sender
+                    er_data_changed,
       on_dialogbox_close
         for event close of cl_gui_dialogbox_container.
   Private section.
