@@ -36,7 +36,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '88',
+    minor type n length 2 value '89',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -2747,12 +2747,16 @@ Form alv_1_show_f4_equnr
 
   Constants:
   "Источник данных для помощи по вводу
-    lc_shlpname type shlpname value 'ZPMP006_1'.
+    lc_shlpname type shlpname value 'ZPMP006_1',
+  "Длина значащей части образца для поиска вида *XYZ* с общей длиной 25=1+23+1
+  "Длина 25 вычислена экспериментально для беспроблемного повторного поиска.
+    lc_pattern_length type i value 23.
 
   Data:
     ls_shlp type shlp_descr,
     ls_interface type ddshiface,
     ls_selopt type ddshselopt,
+    lv_end_asterisk_position type i,
     lv_rc type sy-subrc,
     lt_selected_sh_rows type standard table of ddshretval,
     ls_selected_sh_row type ddshretval,
@@ -2789,33 +2793,36 @@ Form alv_1_show_f4_equnr
     Append ls_selopt to ls_shlp-selopt.
   Endif.
 
+"Задать ограничения в виде образцов *XYZ*
+  ls_selopt-option = gcs-so-option-contains_pattern.
+
   If is_data_row-type is not initial. "Тип/модель
+    Clear: ls_selopt-shlpfield, ls_selopt-low.
     ls_selopt-shlpfield = gcs-data_table-type.
-    ls_selopt-option = gcs-so-option-contains_pattern.
-    Concatenate gc_asterisk
-                is_data_row-type
-                gc_asterisk
-      into ls_selopt-low.
+    ls_selopt-low+0(1) = gc_asterisk.
+    ls_selopt-low+1(lc_pattern_length) = is_data_row-type.
+    lv_end_asterisk_position = strlen( ls_selopt-low ).
+    ls_selopt-low+lv_end_asterisk_position(1) = gc_asterisk.
     Append ls_selopt to ls_shlp-selopt.
   Endif.
 
   If is_data_row-serge is not initial. "Серийный номер
+    Clear: ls_selopt-shlpfield, ls_selopt-low.
     ls_selopt-shlpfield = gcs-data_table-serge.
-    ls_selopt-option = gcs-so-option-contains_pattern.
-    Concatenate gc_asterisk
-                is_data_row-serge
-                gc_asterisk
-      into ls_selopt-low.
+    ls_selopt-low+0(1) = gc_asterisk.
+    ls_selopt-low+1(lc_pattern_length) = is_data_row-serge.
+    lv_end_asterisk_position = strlen( ls_selopt-low ).
+    ls_selopt-low+lv_end_asterisk_position(1) = gc_asterisk.
     Append ls_selopt to ls_shlp-selopt.
   Endif.
 
   If is_data_row-equipment_name is not initial. "Наименование
+    Clear: ls_selopt-shlpfield, ls_selopt-low.
     ls_selopt-shlpfield = gcs-data_table-equipment_name.
-    ls_selopt-option = gcs-so-option-contains_pattern.
-    Concatenate gc_asterisk
-                is_data_row-equipment_name
-                gc_asterisk
-      into ls_selopt-low.
+    ls_selopt-low+0(1) = gc_asterisk.
+    ls_selopt-low+1(lc_pattern_length) = is_data_row-equipment_name.
+    lv_end_asterisk_position = strlen( ls_selopt-low ).
+    ls_selopt-low+lv_end_asterisk_position(1) = gc_asterisk.
     Append ls_selopt to ls_shlp-selopt.
   Endif.
 
