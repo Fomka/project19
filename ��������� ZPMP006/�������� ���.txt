@@ -36,7 +36,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '87',
+    minor type n length 2 value '88',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -2868,7 +2868,8 @@ Endform. "alv_1_show_f4_equnr
 Form export_to_excel using it_data like gt_data.
 
   Data:
-    ls_data like line of it_data.
+    ls_data like line of it_data,
+    lv_error type boolean.
 
   Types: "Для вывода в Excel
     ty_s_excel type ZWWW_VALUES,
@@ -3005,19 +3006,14 @@ Form export_to_excel using it_data like gt_data.
     tables
       IT_VALUES               = lt_excel
     exceptions
-      printcancel             = 1
-      others                  = 2
-            .
-  If sy-subrc <> 0.
-    Message id sy-msgid
-      type sy-msgty
-      number sy-msgno
-      with sy-msgv1
-           sy-msgv2
-           sy-msgv3
-           sy-msgv4.
-  Endif.
+      error_message           = 1 "ловить внутри ФМ сообщения без RAISING
+      others                  = 2 "все сообщения с RAISING (т.е. exceptions)
+            ."#EC * sy-subrc обрабатывается в process_error_ZWWW_OPENFORM
 
+  Perform process_error_ZWWW_OPENFORM
+    using sy lv_file_name
+    changing lv_error
+          .
 Endform. "export_to_excel
 
 *&-------------------------------------------------------------------*
@@ -3641,3 +3637,35 @@ Form check_variant
     ov_correct = gc_true.
   Endif.
 Endform. "check_variant
+
+*&---------------------------------------------------------------------*
+*&   Обработка ошибок после вызова ZWWW_OPENFORM
+*&---------------------------------------------------------------------*
+*& Вход
+*& -> is_sys = структура sy
+*&
+*& Выход
+*& - сообщение типа I
+*& <-> ov_error = 'X', если была ошибка
+*&---------------------------------------------------------------------*
+Form process_error_ZWWW_OPENFORM
+  using is_sys type syst
+        iv_filename type RLGRAP-FILENAME
+  changing ov_error type boolean.
+
+  If is_sys-subrc <> 0.
+    ov_error = gc_true.
+    If is_sys-msgid = 'FES' and is_sys-msgno = '012'.
+      Message i000(su) with 'Не получилось выгрузить данные из SAP в файл'
+                            iv_filename
+                            'Возможно, что этот файл уже открыт в Excel.'
+                            'Закройте Excel и попробуйте выгрузить снова'.
+    Else.
+      Message id is_sys-msgid type 'I' number is_sys-msgno
+              with is_sys-msgv1 is_sys-msgv2 is_sys-msgv3 is_sys-msgv4.
+    Endif.
+    Exit.
+  Endif.
+  Clear ov_error. "Сбросить отметку об ошибке при успешном завершении
+
+Endform. "process_error_ZWWW_OPENFORM
