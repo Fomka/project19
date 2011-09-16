@@ -36,7 +36,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '89',
+    minor type n length 2 value '91',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -3127,6 +3127,7 @@ Endform. "alv_2_prepare
 *& gcs_log_table-table_name.
 *&
 *&  -> iv_dynnr = номер экрана, на котором будет отображён ALV-грид
+*&  -> is_data = запись из грида типа 1, для неё выбраны данные из ZPMP006_3
 *& <-> ot_data = внутренняя таблица с данными из таблицы ZPMP006_3
 *& <-> os_alv = набор объектов, необходимый для отображения ALV-грида
 *&
@@ -3134,9 +3135,32 @@ Endform. "alv_2_prepare
 Form alv_2_display
   using
     iv_dynnr type sy-dynnr
+    is_data type ty_s_data
   changing
     ot_data type ty_t_log
     os_alv type ty_s_alv-log.
+
+  Data:
+    lv_caption type c length 128.
+
+  Call function 'CONVERSION_EXIT_ALPHA_OUTPUT'
+    exporting
+      input  = is_data-equnr
+    importing
+      output = lv_caption
+            .
+  Concatenate is_data-stort
+              lv_caption
+              is_data-type
+    into lv_caption
+    separated by '|'.
+  Concatenate 'Журнал изменений (Цех|ЕО|Тип/модель ='
+              lv_caption
+    into lv_caption
+    separated by space.
+  Concatenate lv_caption
+              ')'
+    into lv_caption.
 
   If os_alv-r_grid is initial.
     Create object os_alv-r_cont
@@ -3147,7 +3171,7 @@ Form alv_2_display
         dynnr         = sy-dynnr
         top           = 100
         left          = 200
-        caption       = 'Журнал изменений'
+        caption       = lv_caption
       exceptions
         others        = 1
         .
@@ -3263,6 +3287,7 @@ Form show_log
 "Показать выбранные данные
   Perform alv_2_display
     using gcs-screens-log-number
+          ls_data
     changing ot_log_data
              os_alv-log
           .
