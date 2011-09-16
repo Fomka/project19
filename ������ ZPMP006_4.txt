@@ -23,34 +23,34 @@ ZPM_USR
 
 Поле ракурса Таблица Имя поля     Клч Элемент данных           Мод
 
-MANDT        USR21   MANDT        +   MANDT
-BNAME        USR21   BNAME        +   XUBNAME
-DATE_FROM    ADRP    DATE_FROM    +   AD_DATE_FR
-NATION       ADRP    NATION       +   AD_NATION
-DATE_FROMCP  ADCP    DATE_FROM    +   AD_DATE_FR
-DATE_FROMC   ADRC    DATE_FROM    +   AD_DATE_FR
-PROGNAME     ZPM_USR PROGNAME     +   PROGNAME
-OPERATION    ZPM_USR OPERATION    +   ZPM_AUTH_OPERATION
-UNAME        ZPM_USR UNAME            XUBNAME
-NAME_FIRST   ADRP    NAME_FIRST       AD_NAMEFIR
-NAME_LAST    ADRP    NAME_LAST        AD_NAMELAS
-NAME_TEXT    ADRP    NAME_TEXT        AD_NAMTEXT
-MC_NAMEFIR   ADRP    MC_NAMEFIR       AD_MC_NMFI
-MC_NAMELAS   ADRP    MC_NAMELAS       AD_MC_NMLA
-TEL_EXTENS   ADCP    TEL_EXTENS       AD_TLXTNS1
-FAX_EXTENS   ADCP    FAX_EXTENS       AD_FXXTNS1
-BUILDING     ADCP    BUILDING         AD_BLDNG_P
-ROOMNUMBER   ADCP    ROOMNUMBER       AD_ROOMNUM
-DEPARTMENT   ADCP    DEPARTMENT       AD_DPRTMNT
-FUNCTION     ADCP    FUNCTION         AD_FNCTN
-INHOUSE_ML   ADCP    IH_MAIL          AD_IH_MAIL
-NAME1        ADRC    NAME1            AD_NAME1
-CITY1        ADRC    CITY1            AD_CITY1
-MC_NAME1     ADRC    MC_NAME1         AD_MC_NAME
-MC_CITY1     ADRC    MC_CITY1         AD_MC_CITY
-RESTRICTIONS ZPM_USR RESTRICTIONS     ZPM_AUTH_OP_RESTRICTIONS
-CHANGE_DATE  ZPM_USR CHANGE_DATE
-CHANGE_NAME  ZPM_USR CHANGE_NAME      XUBNAME
+MANDT        USR21   MANDT        +   MANDT                     -
+BNAME        USR21   BNAME        +   XUBNAME                   -
+DATE_FROM    ADRP    DATE_FROM    +   AD_DATE_FR                -
+NATION       ADRP    NATION       +   AD_NATION                 -
+DATE_FROMCP  ADCP    DATE_FROM    +   AD_DATE_FR                -
+DATE_FROMC   ADRC    DATE_FROM    +   AD_DATE_FR                -
+PROGNAME     ZPM_USR PROGNAME     +   PROGNAME                  -
+OPERATION    ZPM_USR OPERATION    +   ZPM_AUTH_OPERATION        -
+UNAME        ZPM_USR UNAME        -   XUBNAME                   -
+NAME_FIRST   ADRP    NAME_FIRST   -   AD_NAMEFIR                -
+NAME_LAST    ADRP    NAME_LAST    -   AD_NAMELAS                -
+NAME_TEXT    ADRP    NAME_TEXT    -   AD_NAMTEXT                -
+MC_NAMEFIR   ADRP    MC_NAMEFIR   -   AD_MC_NMFI                -
+MC_NAMELAS   ADRP    MC_NAMELAS   -   AD_MC_NMLA                -
+TEL_EXTENS   ADCP    TEL_EXTENS   -   AD_TLXTNS1                -
+FAX_EXTENS   ADCP    FAX_EXTENS   -   AD_FXXTNS1                -
+BUILDING     ADCP    BUILDING     -   AD_BLDNG_P                -
+ROOMNUMBER   ADCP    ROOMNUMBER   -   AD_ROOMNUM                -
+DEPARTMENT   ADCP    DEPARTMENT   -   AD_DPRTMNT                -
+FUNCTION     ADCP    FUNCTION     -   AD_FNCTN                  -
+INHOUSE_ML   ADCP    IH_MAIL      -   AD_IH_MAIL                -
+NAME1        ADRC    NAME1        -   AD_NAME1                  -
+CITY1        ADRC    CITY1        -   AD_CITY1                  -
+MC_NAME1     ADRC    MC_NAME1     -   AD_MC_NAME                -
+MC_CITY1     ADRC    MC_CITY1     -   AD_MC_CITY                -
+RESTRICTIONS ZPM_USR RESTRICTIONS -   ZPM_AUTH_OP_RESTRICTIONS  -
+CHANGE_DATE  ZPM_USR CHANGE_DATE  -                             -
+CHANGE_NAME  ZPM_USR CHANGE_NAME  -   XUBNAME                   -
 
 
 Условия соедин.:

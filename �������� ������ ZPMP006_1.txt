@@ -13,8 +13,8 @@
 
 ПарСрПоиск     IMP EXP ПозС ПозВ ПрВы ЭлемДанных mod ПоУмолч
 
-STORT                     1    1      PMLOC       -
-EQUNR                     2    2      EQUNR       -
-TYPE                      3    3      TYPBZ       -
-SERGE                     4    4      SERGE       -
-EQUIPMENT_NAME            5    5      KTX01       -
+STORT           +   -     1    1  +   PMLOC       -
+EQUNR           +   +     2    2  -   EQUNR       -
+TYPE            +   +     3    3  -   TYPBZ       -
+SERGE           +   +     4    4  -   SERGE       -
+EQUIPMENT_NAME  +   +     5    5  -   KTX01       -

@@ -22,15 +22,15 @@ ILOA
 
 Поле ракурса   Таблица Поле  Клч ЭлДанных Мод
 
-MANDT          EQUZ    MANDT  +  MANDT
-DATBI          EQUZ    DATBI  +  DATBI
-EQUNR          EQUZ    EQUNR  +  EQUNR
-SPRAS          EQKT    SPRAS  +  SPRAS
-EQUIPMENT_NAME EQKT    EQKTX  +  KTX01
-EQLFN          EQUZ    EQLFN  +  EQLFN
-STORT          ILOA    STORT     PMLOC
-TYPE           EQUI    TYPBZ     TYPBZ
-SERGE          EQUI    SERGE     SERGE
+MANDT          EQUZ    MANDT  +  MANDT     -
+DATBI          EQUZ    DATBI  +  DATBI     -
+EQUNR          EQUZ    EQUNR  +  EQUNR     -
+SPRAS          EQKT    SPRAS  +  SPRAS     -
+EQUIPMENT_NAME EQKT    EQKTX  +  KTX01     -
+EQLFN          EQUZ    EQLFN  +  EQLFN     -
+STORT          ILOA    STORT  -  PMLOC     -
+TYPE           EQUI    TYPBZ  -  TYPBZ     -
+SERGE          EQUI    SERGE  -  SERGE     -
 
 Условия соедин.:
 
