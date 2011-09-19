@@ -36,7 +36,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '91',
+    minor type n length 2 value '93',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -2537,7 +2537,8 @@ Endform. "check_stort_is_ok
 
 *&-------------------------------------------------------------------*
 *&   Проверить соответствие между местоположением и единицей оборудования:
-*& актуальное местоположение единицы должно совпадать с проверочным.
+*& 1) актуальное местоположение единицы должно совпадать с проверочным,
+*& 2) "Тип ЕО" EQTYP должен быть из списка разрешённых.
 *&-------------------------------------------------------------------*
 Form check_equnr_is_ok
   using
@@ -2548,27 +2549,37 @@ Form check_equnr_is_ok
 
   Data:
     lv_max_eqlfn type ZPMP006_2-EQLFN,
-    lv_stort like iv_stort.
+    lv_stort like iv_stort,
+    lv_eqtyp type ZPMP006_2-EQTYP.
 
+  ov_is_ok = gc_false.
 "Выбрать актуальное (последнее) местоположение у ЕО
   Select max( EQLFN )
     into lv_max_eqlfn "если в один день было несколько записей, взять последнюю
     from ZPMP006_2
     where EQUNR = iv_equnr
          .
-  Select single STORT "#EC * Ключ. полей хватает (в ракурсе DATBI = '9991231')
-    into lv_stort
-    from ZPMP006_2
+  Select single STORT EQTYP
+    into (lv_stort, lv_eqtyp)
+    from ZPMP006_2 "#EC * Ключ. полей хватает (в ракурсе DATBI = '9991231')
     where EQUNR = iv_equnr and
           EQLFN = lv_max_eqlfn
          .
-  If sy-subrc = 0 and
-     lv_stort = iv_stort.
-  "Актуальное местоположение в единице оборудования совпадает с проверочным
-    ov_is_ok = gc_true.
-  Else.
-    ov_is_ok = gc_false.
+  If sy-subrc <> 0.
+    Exit.
   Endif.
+  If lv_stort <> iv_stort.
+  "Актуальное местоположение в единице оборудования не совпадает с проверочным
+    Exit.
+  Endif.
+  If lv_eqtyp <> '1' and
+     lv_eqtyp <> '2' and
+     lv_eqtyp <> '3' and
+     lv_eqtyp <> '8 '.
+  "Тип ЕО не из списка разрешённых
+    Exit.
+  Endif.
+  ov_is_ok = gc_true. "Все проверки пройдены успешно
 Endform. "check_equnr_is_ok
 
 *&-------------------------------------------------------------------*
