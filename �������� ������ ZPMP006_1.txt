@@ -15,7 +15,8 @@
 
 STORT           +   -     1    1  +   PMLOC       -
 EQUNR           +   +     2    2  -   EQUNR       -
-EQART           +   -     3    3  -   EQART       -
-TYPE            +   +     4    4  -   TYPBZ       -
-SERGE           +   +     5    5  -   SERGE       -
-EQUIPMENT_NAME  +   +     6    6  -   KTX01       -
+EQTYP           +   -     3    3  -   EQTYP       -
+EQART           +   -     4    4  -   EQART       -
+TYPE            +   +     5    5  -   TYPBZ       -
+SERGE           +   +     6    6  -   SERGE       -
+EQUIPMENT_NAME  +   +     7    7  -   KTX01       -

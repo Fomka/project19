@@ -29,6 +29,7 @@ SPRAS          EQKT    SPRAS  +  SPRAS     -
 EQUIPMENT_NAME EQKT    EQKTX  +  KTX01     -
 EQLFN          EQUZ    EQLFN  +  EQLFN     -
 STORT          ILOA    STORT  -  PMLOC     -
+EQTYP          EQUI    EQTYP  -  EQTYP     -
 EQART          EQUI    EQART  -  EQART     -
 TYPE           EQUI    TYPBZ  -  TYPBZ     -
 SERGE          EQUI    SERGE  -  SERGE     -
