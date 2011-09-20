@@ -36,7 +36,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '93',
+    minor type n length 2 value '94',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -2759,9 +2759,9 @@ Form alv_1_show_f4_equnr
   Constants:
   "Источник данных для помощи по вводу
     lc_shlpname type shlpname value 'ZPMP006_1',
-  "Длина значащей части образца для поиска вида *XYZ* с общей длиной 25=1+23+1
-  "Длина 25 вычислена экспериментально для беспроблемного повторного поиска.
-    lc_pattern_length type i value 23.
+  "Длина значащей части образца для поиска вида *XYZ* с общей длиной 24=1+22+1
+  "Длина 24 вычислена экспериментально для беспроблемного повторного поиска.
+    lc_pattern_length type i value 22.
 
   Data:
     ls_shlp type shlp_descr,
