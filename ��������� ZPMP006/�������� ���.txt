@@ -36,7 +36,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '94',
+    minor type n length 2 value '95',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -3342,13 +3342,16 @@ Form get_user_data
     ov_count type i.
 
 "Select перезаписывает таблицу ot_data
-  Select *
-    from ZPMP006_4
-    into corresponding fields of table ot_data.
-  If iv_show_all <> gc_true.
-    Delete ot_data
-      where operation = 'CREATE' or
-            operation = 'ALL'.
+  If iv_show_all = gc_true.
+    Select * "#EC CI_NOWHERE Нет ограничения на выборку, т.к. таблица небольшая
+      from ZPMP006_4
+      into corresponding fields of table ot_data.
+  Else.
+    Select *
+      from ZPMP006_4
+      into corresponding fields of table ot_data
+      where operation <> 'CREATE' and
+            operation <> 'ALL'.
   Endif.
   Describe table ot_data lines ov_count.
 
