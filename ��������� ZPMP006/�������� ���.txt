@@ -37,7 +37,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '96',
+    minor type n length 2 value '97',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -91,8 +91,10 @@ Constants:
         show_log type sy-ucomm value 'LOG',
       end of alv,
     "Общие для всех экранов
-      help type sy-ucomm value 'HELP',
-      version type sy-ucomm value 'VERSION',
+      begin of hidden, "Скрытые команды (без кнопок в меню и панели инструментов)
+        help type sy-ucomm value 'HELP',
+        version type sy-ucomm value 'VERSION',
+      end of hidden,
     "Начальный экран, экран выбора
       begin of sel_screen,
         goto_users type sy-ucomm value 'GOTO_USERS', "Изменил? Ищи user-command goto_users
@@ -890,10 +892,10 @@ Form dispatch_user_command
   "Искать команду в списке команд, общих для всех экранов.
   "Если найдена — обработать и выйти из этой подпрограммы.
   Case lv_ucomm.
-    When gcs-commands-help.
-      Perform show_help.
+    When gcs-commands-hidden-help.
+      Perform show_help using gcs-commands-hidden.
       Exit.
-    When gcs-commands-version.
+    When gcs-commands-hidden-version.
       Perform show_version
         using gc_version
               .
@@ -1075,10 +1077,29 @@ Endform. "dispatch_user_command
 
 *&-------------------------------------------------------------------*
 *&   Показать справку по программе (сейчас это список скрытых команд)
+*&  -> is_hidden_commands — список скрытых команд, каждая команда типа sy-ucomm
 *&-------------------------------------------------------------------*
-Form show_help.
-  Message i000(SU)
-   with 'Скрытые команды: HELP, VERSION'.
+Form show_help
+  using is_hidden_commands like gcs-commands-hidden.
+
+  Data:
+    lv_string type string.
+  Field-symbols:
+    <command> like gcs-commands-hidden-help.
+
+  Do.
+    Assign component sy-index of structure is_hidden_commands to <command>.
+    If sy-subrc <> 0.
+      Exit.
+    Endif.
+    If lv_string is initial.
+      lv_string = <command>.
+    Else.
+      Concatenate lv_string <command> into lv_string separated by ', '.
+    Endif.
+  Enddo.
+  Message i000(SU) with 'Скрытые команды:'
+                        lv_string.
 Endform. "show_help
 
 *&-------------------------------------------------------------------*
