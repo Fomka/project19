@@ -37,7 +37,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '97',
+    minor type n length 2 value '98',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -3002,7 +3002,8 @@ Form export_to_excel using it_data like gt_data.
     ls_t1_row-col09 = ls_data-dev_environment.
     ls_t1_row-col10 = ls_data-mod_cause.
     ls_t1_row-col11 = ls_data-mod_worker.
-    ls_t1_row-col12 = ls_data-mod_date.
+    Concatenate '''' ls_data-mod_date
+      into ls_t1_row-col12.
     ls_t1_row-col13 = ls_data-num_of_copies.
     ls_t1_row-col14 = ls_data-commentary.
 
