@@ -37,7 +37,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 3 value '101',
+    minor type n length 3 value '102',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -369,7 +369,6 @@ Types:
   end of ty_s_alv.
 
 Data:
-  gv_variant_is_correct type boolean, "Введённый на экране выбора формат верен
 "Ограничения на поле ZPMP006_1-STORT "Местоположение"
   gt_create_stort_restrictions type ty_t_strings, "для операции CREATE
   gt_change_stort_restrictions type ty_t_strings, "для операции CHANGE
@@ -738,38 +737,22 @@ At selection-screen.
 
 *--- Нажатие "Выполнить" (F8) на экране выбора (sy-ucomm = 'ONLI') -----------*
 Start-of-selection.
-  Perform check_variant
+  Perform selection_start
     using p_vari
           sy-repid
-    changing gv_variant_is_correct.
-  If gv_variant_is_correct <> gc_true.
-    Message i000(su)
-      with 'Формат'
-           p_vari
-           'не найден!'
-      display like 'E'.
-    Exit.
-  Endif.
-  Perform get_data
-    using p_show_d
+          p_show_d
     changing gt_data
              gv_row_count
           .
-  If gv_row_count = 0. "Обработать результат выборки из БД, вхождение 1 из 3
-    Message i000(SU)
-      with 'Не найдено ни одной записи'.
-    Exit.
-  Else.
-    Message s000(SU)
-      with 'Записей найдено:'
-           gv_row_count
-           'шт.'.
-  Endif.
 
 
 *--- Выборка из базы данных завершена ----------------------------------------*
 End-of-selection.
-  Call screen gcs-screens-data_view-number.
+  Perform selection_end
+    using p_change
+          gt_data
+          gv_row_count
+          .
 
 
 *--- Экранные модули, начало -------------------------------------------------*
@@ -879,9 +862,7 @@ Form dispatch_user_command
     ov_ucomm type sy-ucomm.
 
   Data:
-    lv_ucomm type sy-ucomm,
-    ls_data type ty_s_data,
-    lv_string type string.
+    lv_ucomm type sy-ucomm.
 
   lv_ucomm = ov_ucomm. "ov_ucomm очищается при успешном завершении подпрограммы
 
@@ -931,83 +912,17 @@ Form dispatch_user_command
           Call screen gcs-screens-data_create-number.
 
         When gcs-commands-sel_screen-goto_search.
-          Perform check_variant
+          Perform selection_start
             using p_vari
                   sy-repid
-            changing gv_variant_is_correct.
-          If gv_variant_is_correct <> gc_true.
-            Message i000(su)
-              with 'Формат'
-                   p_vari
-                   'не найден!'
-              display like 'E'.
-            Exit.
-          Endif.
-          Perform get_data
-            using p_show_d
+                  p_show_d
             changing gt_data
                      gv_row_count
                   .
-          If gv_row_count = 0. "Обработать результат выборки из БД, вхождение 2 из 3
-            Message i000(SU)
-              with 'Не найдено ни одной записи'.
-            Exit.
-          Else.
-            Message s000(SU)
-              with 'Записей найдено:'
-                   gv_row_count
-                   'шт.'.
-          Endif.
-
-          If gc_true = p_change.
-          "Установить блокировку на все найденные записи
-            Loop at gt_data into ls_data.
-              Call function 'ENQUEUE_EZPMP006_1'
-                exporting
-                  mode_zpmp006_1       = gcs-lock-mode-exclusive
-                  mandt                = sy-mandt
-                  unique_index         = ls_data-unique_index
-                  x_unique_index       = gc_true
-                  _scope               = gcs-lock-scope-min
-                  _wait                = gc_false
-                  _collect             = gc_true "собрать в один пакет
-                        .
-            Endloop.
-            Call function 'FLUSH_ENQUEUE' "обработать собранный пакет
-              exceptions
-                foreign_lock         = 1
-                system_failure       = 2
-                others               = 3
-                      .
-            Case sy-subrc.
-              When 0.
-              "Перейти на экран CHANGE
-                Call screen gcs-screens-data_change-number.
-              When 1.
-                Concatenate 'Пользователь'
-                            sy-msgv1
-                  into lv_string
-                  separated by space.
-                Message s000(su)
-                  with lv_string
-                       'изменяет запрошенные вами данные.'
-                       'Включён режим просмотра'
-                  display like 'E'.
-              "Перейти на экран VIEW
-                Call screen gcs-screens-data_view-number.
-              When others.
-                Message id sy-msgid
-                  type sy-msgty
-                  number sy-msgno
-                  with sy-msgv1
-                       sy-msgv2
-                       sy-msgv3
-                       sy-msgv4.
-                Exit.
-            Endcase.
-          Else.
-            Call screen gcs-screens-data_view-number.
-          Endif.
+          Perform selection_end
+            using p_change
+                  gt_data
+                  gv_row_count.
 
         When gcs-commands-sel_screen-online. "Нажатие "Выполнить" (F8) на экране выбора
           "ничего не делать, обработка находится в событии Start-of-selection
@@ -3738,3 +3653,123 @@ Form process_error_ZWWW_OPENFORM
   Clear ov_error. "Сбросить отметку об ошибке при успешном завершении
 
 Endform. "process_error_ZWWW_OPENFORM
+
+*&-------------------------------------------------------------------*
+*&   Проверить введённые на начальном экране параметры и начать выборку данных.
+*&
+*&  -> iv_variant = вариант отображения данных в ALV-гриде на следующем экране
+*&  -> iv_repid = название программы для поиска варианта с именем iv_variant
+*&  -> iv_show_deleted = если ИСТИНА, то показывать дополнительно к обычным
+*&                       строки с установленной меткой удаления
+*& <-> ot_data = таблица с выбранными данными
+*& <-> ov_count = количество строк в таблице ot_data
+*&-------------------------------------------------------------------*
+Form selection_start
+  using iv_variant type slis_vari
+        iv_repid type sy-repid
+        iv_show_deleted type boolean
+  changing ot_data type ty_t_data
+           ov_count type i.
+
+  Data:
+    lv_correct type boolean.
+
+  Perform check_variant
+    using iv_variant
+          iv_repid
+    changing lv_correct.
+  If lv_correct <> gc_true.
+    Message i000(su)
+      with 'Формат'
+           iv_variant
+           'не найден!'
+      display like 'E'.
+    Exit.
+  Endif.
+  Perform get_data
+    using iv_show_deleted
+    changing ot_data
+             ov_count
+          .
+Endform. "selection_start
+
+*&-------------------------------------------------------------------*
+*&   Обработать результаты выборки данных: перейти на следующий экран, если
+*& данные были выбраны, остаться на начальном экране в противном случае.
+*&
+*&  -> iv_change_mode = если ИСТИНА, то переходить на экран в режиме изменения
+*&                      (с установкой блокировок), иначе — в режиме просмотра
+*&  -> it_data = таблица с выбранными данными
+*&  -> iv_count = количество строк в таблице it_data
+*&-------------------------------------------------------------------*
+Form selection_end
+  using iv_change_mode type boolean
+        it_data type ty_t_data
+        iv_count type i.
+
+  Data:
+    ls_data type ty_s_data,
+    lv_string type string.
+
+  If iv_count = 0.
+    Message i000(SU)
+      with 'Не найдено ни одной записи'.
+    Exit.
+  Else.
+    Message s000(SU)
+      with 'Записей найдено:'
+           iv_count
+           'шт.'.
+  Endif.
+
+  If gc_true = iv_change_mode.
+  "Установить блокировку на все найденные записи
+    Loop at it_data into ls_data.
+      Call function 'ENQUEUE_EZPMP006_1'
+        exporting
+          mode_zpmp006_1       = gcs-lock-mode-exclusive
+          mandt                = sy-mandt
+          unique_index         = ls_data-unique_index
+          x_unique_index       = gc_true
+          _scope               = gcs-lock-scope-min
+          _wait                = gc_false
+          _collect             = gc_true "собрать в один пакет
+                .
+    Endloop.
+    Call function 'FLUSH_ENQUEUE' "обработать собранный пакет
+      exceptions
+        foreign_lock         = 1
+        system_failure       = 2
+        others               = 3
+              .
+    Case sy-subrc.
+      When 0.
+      "Перейти на экран CHANGE
+        Call screen gcs-screens-data_change-number.
+      When 1.
+        Concatenate 'Пользователь'
+                    sy-msgv1
+          into lv_string
+          separated by space.
+        Message s000(su)
+          with lv_string
+               'изменяет запрошенные вами данные.'
+               'Включён режим просмотра'
+          display like 'E'.
+      "Перейти на экран VIEW
+        Call screen gcs-screens-data_view-number.
+      When others.
+        Message id sy-msgid
+          type sy-msgty
+          number sy-msgno
+          with sy-msgv1
+               sy-msgv2
+               sy-msgv3
+               sy-msgv4.
+        Exit.
+    Endcase.
+  Else.
+    Call screen gcs-screens-data_view-number.
+  Endif.
+
+Endform. "selection_end
