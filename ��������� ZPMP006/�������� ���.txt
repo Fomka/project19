@@ -37,7 +37,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '98',
+    minor type n length 2 value '99',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -2801,6 +2801,13 @@ Form alv_1_show_f4_equnr
 "Отказаться от стандартной помощи по вводу
   ir_event_data->m_event_handled = gc_true.
 
+"Прекратить вывод помощи по вводу, если не задано местоположение
+  If is_data_row-stort is initial.
+    Message s000(su)
+      with 'Введите, по-крайней мере, местоположение'
+           '(для ограничения списка единиц оборудования)'.
+    Exit.
+  Endif.
 "Получить описание средства поиска СП
   Call function 'F4IF_GET_SHLP_DESCR'
        exporting
@@ -2820,11 +2827,9 @@ Form alv_1_show_f4_equnr
   ls_selopt-shlpname = lc_shlpname.
   ls_selopt-sign = gcs-so-sign-include.
   ls_selopt-option = gcs-so-option-equals.
-  If is_data_row-stort is not initial. "Местоположение
-    ls_selopt-shlpfield = gcs-data_table-stort.
-    ls_selopt-low = is_data_row-stort.
-    Append ls_selopt to ls_shlp-selopt.
-  Endif.
+  ls_selopt-shlpfield = gcs-data_table-stort. "Местоположение, проверено выше
+  ls_selopt-low = is_data_row-stort.
+  Append ls_selopt to ls_shlp-selopt.
 
 "Задать ограничения в виде образцов *XYZ*
   ls_selopt-option = gcs-so-option-contains_pattern.
