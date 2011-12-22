@@ -37,7 +37,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 3 value '100',
+    minor type n length 3 value '101',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -583,8 +583,8 @@ Selection-screen begin of block b20 with frame.
     p_show_d as checkbox
       modif id ALL "показывается, если есть полномочия на всё
       default space, "по-умолчанию удалённые данные не показываются
-  "toggle change = включить/выключить режим изменения
-    p_tog_ch as checkbox
+  "change = режим изменения
+    p_change as checkbox
       modif id CHA "показывается, если есть полномочия на операцию CHANGE
       user-command selscr_toggle_change "команда, вызываемая по переключению
       default space, "изначально режим изменения выключен, чтобы сообщение
@@ -712,8 +712,8 @@ At selection-screen output.
 
 "Определить, как показывать параметр "Местоположение" (блок для CHANGE/VIEW)
   If gs_permissions-all = gc_true or
-     p_tog_ch <> gc_true or
-     ( p_tog_ch = gc_true and
+     p_change <> gc_true or
+     ( p_change = gc_true and
        gt_change_stort_restrictions is initial ).
   "Ограничения на местоположение не действуют, так как
   " либо 1) есть полномочия на всё (ALL)
@@ -959,7 +959,7 @@ Form dispatch_user_command
                    'шт.'.
           Endif.
 
-          If gc_true = p_tog_ch.
+          If gc_true = p_change.
           "Установить блокировку на все найденные записи
             Loop at gt_data into ls_data.
               Call function 'ENQUEUE_EZPMP006_1'
