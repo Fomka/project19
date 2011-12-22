@@ -37,7 +37,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 2 value '99',
+    minor type n length 3 value '100',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -1387,9 +1387,8 @@ Endform. "show_change_stort_restricted
 
 *&-------------------------------------------------------------------*
 *&   Показать (блок для CHANGE/VIEW) поле "Местоположение" без ограничений:
-*& 1) показать поле множественного выбора SO1_STRT "Местоположение",
-*& 2) очистить поле SO1_STRT,
-*& 3) скрыть Selection-screen comment gv_r_cha.
+*& 1) показать поле множественного выбора SO1_STRT "Местоположение", не очищая;
+*& 2) скрыть Selection-screen comment gv_r_cha.
 *&   Глобальные объекты: so1_strt, gv_r_cha
 *&
 *&  -> it_restrictions = таблица со значениями, которые нужно задать
@@ -1400,10 +1399,6 @@ Form show_change_stort_full.
   Perform show_screen_element_group
     using gcs-screens-sel_screen-group_stort_restriction_1
           .
-
-"Очистить поле SO1_STRT
-  Refresh so1_strt[].
-  Clear so1_strt.
 
 "Скрыть Selection-screen comment gv_r_cha
   Clear gv_r_cha.
