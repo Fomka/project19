@@ -37,7 +37,7 @@ Constants:
 "Версия программы
   begin of gc_version,
     major type n length 1 value '0',
-    minor type n length 3 value '102',
+    minor type n length 3 value '103',
   end of gc_version,
 "Глобальная структура с константами
   begin of gcs,
@@ -1857,19 +1857,19 @@ Form save_data
   Data:
     lv_data_is_valid type c length 1,
   "Строки, которые после вызова метода cl_gui_alv_grid->check_changed_data...
-    lt_del_rows type ty_t_data, "... оказались удалены из грида
     lt_ins_rows type ty_t_data, "... оказались вставлены в грид
     lt_mod_rows type ty_t_data, "... оказались изменены в гриде (новые значения)
     lt_mod_rows_old type ty_t_data, "-//- (старые значения)
-  "Кол-во строк, которые оказались удалены/вставлены/изменены в гриде
+    lt_del_rows type ty_t_data, "... оказались удалены из грида
+  "Кол-во строк, которые оказались вставлены/изменены/удалены в гриде
     begin of ls_num_of,
-      deleted type i,
       inserted type i,
       modified type i,
+      deleted type i,
     end of ls_num_of,
   "Для подтягивания изменений, которые делаются функ. модулями ZPMP006_1_*.
-    lt_data_source type ty_t_data, "Содержимое таблиц del, ins, mod
-    ls_data_source type ty_s_data, "Строка с данными из таблиц del, ins, mod
+    lt_data_source type ty_t_data, "Содержимое таблиц ins, mod, del
+    ls_data_source type ty_s_data, "Строка с данными из таблиц ins, mod, del
     ls_data_destination type ty_s_data, "Строка для записи в ot_data
   "Для сообщений
     lv_string type string.
@@ -1896,12 +1896,6 @@ Form save_data
   Endloop.
 
 "Найти отличия между тем, что было в гриде до и после вызова check_changed_data
-  "Обработать удалённые строки
-    Perform subtract_set  "Из "До" вычесть "После"
-      using ot_data_before
-            ot_data
-      changing lt_del_rows
-            .
   "Обработать добавленные строки
     Perform subtract_set  "Из "После" вычесть "До"
       using ot_data
@@ -1915,7 +1909,13 @@ Form save_data
       changing lt_mod_rows
                lt_mod_rows_old
             .
-"Определены все удалённые/добавленные/изменённые стандартными средствами строки
+  "Обработать удалённые строки
+    Perform subtract_set  "Из "До" вычесть "После"
+      using ot_data_before
+            ot_data
+      changing lt_del_rows
+            .
+"Определены все добавленные/изменённые/удалённые стандартными средствами строки
 "Перенести к удалённым строкам те из изменённых, что были удалены нестандартно,
 "то есть те, что посчитаны как изменённые стандартно.
   Loop at lt_mod_rows into ls_data_source where alv_deleted = gc_true.
@@ -1925,23 +1925,6 @@ Form save_data
   Endloop.
 
 "Применить изменения к таблице ZPMP006_1
-  Call function 'ZPMP006_1_DELETE'
-    exporting
-      iv_do_commit = gc_false
-    importing
-      o_num_of_processed = ls_num_of-deleted
-    changing
-      ct_records = lt_del_rows
-    exceptions
-      db_error = 1.
-  If sy-subrc <> 0.
-    Message e000(su)
-      with 'Ошибка'
-           sy-subrc
-           'при вызове ZPMP006_1_DELETE.'
-           'Содержимое базы данных не изменено.'.
-    Exit.
-  Endif.
   Do.
     Call function 'ZPMP006_1_INSERT'
       exporting
@@ -2006,15 +1989,32 @@ Form save_data
            'Содержимое базы данных не изменено.'.
     Exit.
   Endif.
+  Call function 'ZPMP006_1_DELETE'
+    exporting
+      iv_do_commit = gc_false
+    importing
+      o_num_of_processed = ls_num_of-deleted
+    changing
+      ct_records = lt_del_rows
+    exceptions
+      db_error = 1.
+  If sy-subrc <> 0.
+    Message e000(su)
+      with 'Ошибка'
+           sy-subrc
+           'при вызове ZPMP006_1_DELETE.'
+           'Содержимое базы данных не изменено.'.
+    Exit.
+  Endif.
 
 "Обновить журнал изменений
   Call function 'ZPMP006_3_INSERT_TO_LOG'
     exporting
       iv_do_commit = gc_false
       it_ins_rows = lt_ins_rows
-      it_del_rows = lt_del_rows
-      it_mod_rows_old = lt_mod_rows_old
       it_mod_rows_new = lt_mod_rows
+      it_mod_rows_old = lt_mod_rows_old
+      it_del_rows = lt_del_rows
     exceptions
       db_error = 1
       old_new_mismatch_by_key = 2.
@@ -2032,10 +2032,10 @@ Form save_data
 
 "Отчитаться
   Message i000(su)
-    with 'Удалено/добавлено/изменено строк:'
-         ls_num_of-deleted
+    with 'Добавлено/изменено/удалено строк:'
          ls_num_of-inserted
-         ls_num_of-modified.
+         ls_num_of-modified
+         ls_num_of-deleted.
 
 "Обновить данные в гриде
   Refresh lt_data_source.

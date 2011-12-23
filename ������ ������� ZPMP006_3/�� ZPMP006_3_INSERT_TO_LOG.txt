@@ -8,9 +8,9 @@ FUNCTION ZPMP006_3_INSERT_TO_LOG.
 *"  IMPORTING
 *"     REFERENCE(IV_DO_COMMIT) TYPE  BOOLEAN DEFAULT ' '
 *"     REFERENCE(IT_INS_ROWS) TYPE  ZPMP006_1_TABLE_TYPE
-*"     REFERENCE(IT_DEL_ROWS) TYPE  ZPMP006_1_TABLE_TYPE
-*"     REFERENCE(IT_MOD_ROWS_OLD) TYPE  ZPMP006_1_TABLE_TYPE
 *"     REFERENCE(IT_MOD_ROWS_NEW) TYPE  ZPMP006_1_TABLE_TYPE
+*"     REFERENCE(IT_MOD_ROWS_OLD) TYPE  ZPMP006_1_TABLE_TYPE
+*"     REFERENCE(IT_DEL_ROWS) TYPE  ZPMP006_1_TABLE_TYPE
 *"  EXCEPTIONS
 *"      DB_ERROR
 *"      OLD_NEW_MISMATCH_BY_KEY
@@ -88,18 +88,6 @@ FUNCTION ZPMP006_3_INSERT_TO_LOG.
     Append ls_log_entry to lt_log_entries.
   Endloop.
 
-"Сформировать список строк журнала по строкам, удалённым из ZPMP006_1
-  Loop at it_del_rows into ls_row.
-  "Поля первичного ключа (мандант, индекс, дата/время/автор изменения)
-    Move-corresponding ls_row to ls_log_entry.
-  "Неключевые поля строки в журнале
-    ls_log_entry-field_name = lcs_log-col_name-a19.
-    ls_log_entry-field_label = lcs_log-col_label-b19.
-    ls_log_entry-value_new = 'Установлена метка удаления'.
-    Clear ls_log_entry-value_old.
-    Append ls_log_entry to lt_log_entries.
-  Endloop.
-
 "Сформировать список строк журнала по строкам, изменённым в ZPMP006_1
   Loop at it_mod_rows_old into ls_row.
   "Неключевые поля изменённой строки, старые и новые значения
@@ -150,6 +138,18 @@ FUNCTION ZPMP006_3_INSERT_TO_LOG.
         Append ls_log_entry to lt_log_entries.
       Endif.
     Enddo.
+  Endloop.
+
+"Сформировать список строк журнала по строкам, удалённым из ZPMP006_1
+  Loop at it_del_rows into ls_row.
+  "Поля первичного ключа (мандант, индекс, дата/время/автор изменения)
+    Move-corresponding ls_row to ls_log_entry.
+  "Неключевые поля строки в журнале
+    ls_log_entry-field_name = lcs_log-col_name-a19.
+    ls_log_entry-field_label = lcs_log-col_label-b19.
+    ls_log_entry-value_new = 'Установлена метка удаления'.
+    Clear ls_log_entry-value_old.
+    Append ls_log_entry to lt_log_entries.
   Endloop.
 
 "Список строк журнала сформирован, вставить его в т. ZPMP006_3 без блокировок
